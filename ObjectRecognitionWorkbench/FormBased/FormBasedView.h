@@ -1,0 +1,157 @@
+
+// FormBasedView.h : interface of the CFormBasedView class
+//
+
+#pragma once
+#include <librealsense2/rs.hpp> // Include RealSense Cross Platform API
+
+#include "CRealSenseVideo.h"
+#include "CHistogram.h"
+#include "CPointCloudViewer.h"
+
+#define	CAMERA_ASPECT_WIDTH		16.0
+#define	CAMERA_ASPECT_HEIGHT	9.0
+
+#define	BORDER					16
+#define	SMALL_SPACING			4
+
+#define	MIN_CLIENET_HEIGHT		920
+#define	MIN_CLIENT_WIDTH		1900
+
+class CFormBasedView : public CFormView
+{
+protected: // create from serialization only
+	CFormBasedView() noexcept;
+	DECLARE_DYNCREATE(CFormBasedView)
+
+public:
+#ifdef AFX_DESIGN_TIME
+	enum{ IDD = IDD_FORMBASED_FORM };
+#endif
+
+// Attributes
+public:
+	CFormBasedDoc* GetDocument() const;
+
+// Operations
+public:
+
+	void DoIdleProcessing();
+
+// Overrides
+public:
+	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual void OnInitialUpdate(); // called first time after construct
+	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
+	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
+	virtual void OnEndPrinting(CDC* pDC, CPrintInfo* pInfo);
+	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
+
+	void NewFrame(rs2::frameset& frames);
+
+// Implementation
+public:
+	virtual ~CFormBasedView();
+#ifdef _DEBUG
+	virtual void AssertValid() const;
+	virtual void Dump(CDumpContext& dc) const;
+#endif
+
+protected:
+	// Declare depth colorizer for pretty visualization of depth data
+	rs2::colorizer m_rsColorMap;
+	// Declare rates printer for showing streaming rates of the enabled streams.
+	rs2::rates_printer m_rsPrinter;
+
+	// Declare RealSense pipeline, encapsulating the actual device and sensors
+	rs2::pipeline m_rsPipe;
+
+	// Frameset returned from pipeline
+	rs2::frameset m_rsFrames;
+
+	CRealSenseVideo m_oglDepth;
+	CRealSenseVideo m_oglCamera;
+
+// Generated message map functions
+protected:
+	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+	CHistogram m_ctrlH;
+	CHistogram m_ctrlS;
+	CHistogram m_ctrlV;
+	CHistogram m_ctrlR;
+	CHistogram m_ctrlG;
+	CHistogram m_ctrlB;
+	CStatic m_ctrlHLabel;
+	CStatic m_ctrlSLabel;
+	CStatic m_ctrlVLabel;
+	CStatic m_ctrlRLabel;
+	CStatic m_ctrlGLabel;
+	CStatic m_ctrlBLabel;
+	CStatic m_ctrlHAverage;
+	CStatic m_ctrlSAverage;
+	CStatic m_ctrlVAverage;
+	CStatic m_ctrlRAverage;
+	CStatic m_ctrlGAverage;
+	CStatic m_ctrlBAverage;
+	CSliderCtrl m_ctrlHLeft;
+	CSliderCtrl m_ctrlSLeft;
+	CSliderCtrl m_ctrlVLeft;
+	CSliderCtrl m_ctrlRLeft;
+	CSliderCtrl m_ctrlGLeft;
+	CSliderCtrl m_ctrlBLeft;
+	CSliderCtrl m_ctrlHRight;
+	CSliderCtrl m_ctrlSRight;
+	CSliderCtrl m_ctrlVRight;
+	CSliderCtrl m_ctrlRRight;
+	CSliderCtrl m_ctrlGRight;
+	CSliderCtrl m_ctrlBRight;
+	CStatic m_ctrlHLeftValue;
+	CStatic m_ctrlSLeftValue;
+	CStatic m_ctrlVLeftValue;
+	CStatic m_ctrlRLeftValue;
+	CStatic m_ctrlGLeftValue;
+	CStatic m_ctrlBLeftValue;
+	CStatic m_ctrlHRightValue;
+	CStatic m_ctrlSRightValue;
+	CStatic m_ctrlVRightValue;
+	CStatic m_ctrlRRightValue;
+	CStatic m_ctrlGRightValue;
+	CStatic m_ctrlBRightValue;
+	int m_nHLeftValue;
+	int m_nSLeftValue;
+	int m_nVLeftValue;
+	int m_nRLeftValue;
+	int m_nGLeftValue;
+	int m_nBLeftValue;
+	int	m_nHRightValue;
+	int	m_nSRightValue;
+	int	m_nVRightValue;
+	int	m_nRRightValue;
+	int	m_nGRightValue;
+	int	m_nBRightValue;
+	CButton m_ctrlFreeze;
+
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	CSliderCtrl m_ctrlDepthMin;
+	CSliderCtrl m_ctrlDepthMax;
+	CStatic m_ctrlDepthMinValue;
+	CStatic m_ctrlDepthMaxValue;
+	int m_nDepthMinValue;
+	int m_nDepthMaxValue;
+	CPointCloudViewer m_PointCloudViewer;
+	CRect m_rectPointCloudViewer;
+	std::vector <feature_ptr> m_Layers;
+
+	afx_msg void OnDestroy();
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+};
+
+#ifndef _DEBUG  // debug version in FormBasedView.cpp
+inline CFormBasedDoc* CFormBasedView::GetDocument() const
+   { return reinterpret_cast<CFormBasedDoc*>(m_pDocument); }
+#endif
+
