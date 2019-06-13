@@ -88,6 +88,8 @@ void CPicture::OnPaint()
 		BITMAP bm;
 		m_pBitmap->GetBitmap(&bm);
 
+		dc.SetStretchBltMode(COLORONCOLOR);
+
 		// Draw the bitmap
 		CBitmap* pOldBitmap = (CBitmap*)MemDC.SelectObject(m_pBitmap);
 		dc.StretchBlt(0, 0, rect.Width(), rect.Height(),

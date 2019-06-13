@@ -53,12 +53,16 @@ void CPointCloudViewer::draw_pointcloud(/*state& app_state, */const std::vector<
 	//glRotated(app_state.yaw, 0, 1, 0);
 	//glTranslatef(0, 0, -0.5f);
 
+	glLoadIdentity();
+	glTranslatef(0.0f, 0.0f, -m_fZoom);
+	glTranslatef(m_fPosX, m_fPosY, 0.0f);
+	glRotatef(m_fRotX, 1.0f, 0.0f, 0.0f);
+	glRotatef(m_fRotY, 0.0f, 1.0f, 0.0f);
+
 	//glTranslatef(0, 0, +0.5f);
 	//glRotated(0, 1, 0, 0);
 	//glRotated(0, 0, 1, 0);
 	//glTranslatef(0, 0, -0.5f);
-
-		OnDraw(NULL);
 
 	glPointSize(width / 640);
 	glEnable(GL_TEXTURE_2D);
@@ -126,7 +130,7 @@ CPointCloudViewer::CPointCloudViewer(void)
 {
 	m_fPosX = 0.0f;		// X position of model in camera view
 	m_fPosY = 0.0f;		// Y position of model in camera view
-	m_fZoom = /*10.0f*/-0.5f;	// Zoom on model in camera view
+	m_fZoom = 10.0f/*-0.5f*/;	// Zoom on model in camera view
 	m_fRotX = 0.0f;		// Rotation on model in camera view
 	m_fRotY = 0.0f;		// Rotation on model in camera view
 	m_bIsMaximized = false;
@@ -379,6 +383,8 @@ void CPointCloudViewer::oglDrawScene(void)
 	if (m_pFeatures)
 		draw_pointcloud(*m_pFeatures);
 	return;
+
+	//OnDraw(NULL);
 
 	// Wireframe Mode
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
