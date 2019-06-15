@@ -148,6 +148,12 @@ public:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	CComboBox m_ctrlSACModel;
 	int m_nSACModel;
+	float m_fDistanceThreshhold;
+	float m_fRadiusLimitsMin;
+	float m_fRadiusLimitsMax;
+	float m_fAxisX;
+	float m_fAxisY;
+	float m_fAxisZ;
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

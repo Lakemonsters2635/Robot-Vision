@@ -102,14 +102,20 @@ END_MESSAGE_MAP()
 
 // CFormBasedView construction/destruction
 
+//	noexcept
 CFormBasedView::CFormBasedView()
-	noexcept
 	: CFormView(IDD_FORMBASED_FORM)
 	, m_nDepthMinValue(0)
 	, m_nDepthMaxValue(1000)
 	, m_pPointCloudWindow(NULL)
 	, m_pAppState(NULL)
 	, m_nSACModel(0)
+	, m_fDistanceThreshhold(0.0)
+	, m_fRadiusLimitsMin(0.0)
+	, m_fRadiusLimitsMax(0.0)
+	, m_fAxisX(0.0)
+	, m_fAxisY(0.0)
+	, m_fAxisZ(0.0)
 {
 	// TODO: add construction code here
 
@@ -198,6 +204,13 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	//	DDX_Control(pDX, IDC_OGL_OBJECTS, test);
 	DDX_Control(pDX, IDC_SAC_MODEL, m_ctrlSACModel);
 	DDX_CBIndex(pDX, IDC_SAC_MODEL, m_nSACModel);
+	DDX_Text(pDX, IDC_DISTANCE_THRESHHOLD, m_fDistanceThreshhold);
+	DDV_MinMaxFloat(pDX, m_fDistanceThreshhold, 0.0, FLT_MAX);
+	DDV_MinMaxFloat(pDX, m_fRadiusLimitsMin, 0.0, FLT_MAX);
+	DDV_MinMaxFloat(pDX, m_fRadiusLimitsMax, 0.0, FLT_MAX);
+	DDV_MinMaxFloat(pDX, m_fAxisX, 0.0, FLT_MAX);
+	DDV_MinMaxFloat(pDX, m_fAxisY, 0.0, FLT_MAX);
+	DDV_MinMaxFloat(pDX, m_fAxisZ, 0.0, FLT_MAX);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
