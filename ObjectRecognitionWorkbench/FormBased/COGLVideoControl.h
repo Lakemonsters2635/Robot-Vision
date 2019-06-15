@@ -33,7 +33,7 @@ public:
 	virtual ~COGLVideoControl();
 
 
-	void DrawFrame(GLint internal_format, GLsizei image_width, GLsizei image_height, GLenum format, const GLvoid* pixels);
+	void NewBitmap(GLint internal_format, GLsizei image_width, GLsizei image_height, GLenum format, const GLvoid* pixels);
 	void oglInitialize(void);
 
 	// Added message classes:

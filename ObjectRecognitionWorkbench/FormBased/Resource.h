@@ -57,14 +57,31 @@
 #define IDC_DEPTH_MAX                   1047
 #define IDC_DEPTH_MIN_VALUE             1048
 #define IDC_DEPTH_MAX_VALUE             1049
+#define IDC_SAC_MODEL                   1050
+#define IDC_SAC_MODEL_LABEL             1051
+#define IDC_DISTANCE_THRESHHOLD_LABEL   1052
+#define IDC_DISTANCE_THRESHHOLD         1053
+#define IDC_RADIUS_LIMITS_LABEL         1054
+#define IDC_RADIUS_LIMITS_MIN           1055
+#define IDC_RADIUS_LIMITS_MAX           1056
+#define IDC_AXIS_LABEL                  1057
+#define IDC_AXIS_X                      1058
+#define IDC_AXIS_Y                      1059
+#define IDC_AXIS_Z                      1060
+#define IDC_EPSILON_LABEL               1061
+#define IDC_EPSILON                     1062
+#define IDC_CONE_ANGLE_LABEL            1063
+#define IDC_CONE_ANGLE_MIN              1065
+#define IDC_RADIUS_LIMITS_MAX2          1066
+#define IDC_CONE_ANGLE_MAX              1066
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        311
+#define _APS_NEXT_RESOURCE_VALUE        312
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1047
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

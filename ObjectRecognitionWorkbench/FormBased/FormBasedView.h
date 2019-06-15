@@ -18,6 +18,9 @@
 #define	MIN_CLIENET_HEIGHT		920
 #define	MIN_CLIENT_WIDTH		1900
 
+class window;
+struct glfw_state;
+
 class CFormBasedView : public CFormView
 {
 protected: // create from serialization only
@@ -67,6 +70,7 @@ protected:
 
 	// Declare RealSense pipeline, encapsulating the actual device and sensors
 	rs2::pipeline m_rsPipe;
+	float m_fDepthScale;
 
 	// Frameset returned from pipeline
 	rs2::frameset m_rsFrames;
@@ -78,7 +82,6 @@ protected:
 protected:
 	DECLARE_MESSAGE_MAP()
 public:
-	afx_msg void OnSize(UINT nType, int cx, int cy);
 	CHistogram m_ctrlH;
 	CHistogram m_ctrlS;
 	CHistogram m_ctrlV;
@@ -121,33 +124,30 @@ public:
 	CStatic m_ctrlRRightValue;
 	CStatic m_ctrlGRightValue;
 	CStatic m_ctrlBRightValue;
-	int m_nHLeftValue;
-	int m_nSLeftValue;
-	int m_nVLeftValue;
-	int m_nRLeftValue;
-	int m_nGLeftValue;
-	int m_nBLeftValue;
-	int	m_nHRightValue;
-	int	m_nSRightValue;
-	int	m_nVRightValue;
-	int	m_nRRightValue;
-	int	m_nGRightValue;
-	int	m_nBRightValue;
+
+	ColorFilter	m_colorFilter;
+	
 	CButton m_ctrlFreeze;
 
-	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	CSliderCtrl m_ctrlDepthMin;
 	CSliderCtrl m_ctrlDepthMax;
 	CStatic m_ctrlDepthMinValue;
 	CStatic m_ctrlDepthMaxValue;
 	int m_nDepthMinValue;
 	int m_nDepthMaxValue;
-	CPointCloudViewer m_PointCloudViewer;
+//	CPointCloudViewer m_PointCloudViewer;
 	CRect m_rectPointCloudViewer;
 	std::vector <feature_ptr> m_Layers;
 
+	window*		m_pPointCloudWindow;
+	glfw_state*	m_pAppState;
+
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void OnDestroy();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	CComboBox m_ctrlSACModel;
+	int m_nSACModel;
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

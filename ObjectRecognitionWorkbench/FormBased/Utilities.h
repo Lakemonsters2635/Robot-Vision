@@ -25,5 +25,8 @@ void ComputeHistogram(rs2::frameset frames, FrameHistogram& Hist);
 CString AverageAndSD(long values[256], bool bIsH);
 void FilterFrameByDepth(rs2::frameset frames, int nDepthMin, int nDepthMax);
 
+
+
 using pcl_ptr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color);
+//void draw_pointcloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);

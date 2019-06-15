@@ -13,6 +13,9 @@
 #include "FormBasedView.h"
 #include "Utilities.h"
 
+#include "example.hpp"
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -27,8 +30,8 @@ typedef struct
 	int LeftSliderValue;
 	int RightSliderValue;
 	CHistogram CFormBasedView::*pHistogram;
-	int CFormBasedView::*pLeftValue;
-	int CFormBasedView::*pRightValue;
+	int ColorFilter::*pLeftFilter;
+	int ColorFilter::*pRightFilter;
 } HistogramSet;
 
 #define	SET(s)	{		\
@@ -40,8 +43,8 @@ typedef struct
 	IDC_##s##_LEFT_VALUE,	\
 	IDC_##s##_RIGHT_VALUE,	\
 	&CFormBasedView::m_ctrl##s, \
-	&CFormBasedView::m_n##s##LeftValue, \
-	&CFormBasedView::m_n##s##RightValue, \
+	&ColorFilter::left##s, \
+	&ColorFilter::right##s, \
 	}
 
 HistogramSet histogramSet[2][3]
@@ -49,6 +52,24 @@ HistogramSet histogramSet[2][3]
 	{ SET(H), SET(S), SET(V) },
 	{ SET(R), SET(G), SET(B) }
 };
+
+struct RANSACControls
+{
+	int		idcLabel;
+	int		idcValues[3];
+};
+
+RANSACControls ransacControls[] = {
+	{ IDC_SAC_MODEL_LABEL, { IDC_SAC_MODEL, 0, 0 } },
+	{ IDC_DISTANCE_THRESHHOLD_LABEL, { IDC_DISTANCE_THRESHHOLD, 0 } },
+	{ IDC_RADIUS_LIMITS_LABEL, { IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	{ IDC_AXIS_LABEL, { IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z } },
+	{ IDC_EPSILON_LABEL, { IDC_EPSILON, 0, 0 } },
+	{ IDC_CONE_ANGLE_LABEL, { IDC_CONE_ANGLE_MIN, IDC_CONE_ANGLE_MAX, 0 } }
+};
+
+#define	N_RANSAC_CONTROLS	(sizeof(ransacControls) / sizeof(ransacControls[0]))
+
 
 void
 AdjustAspect(int& nOGLWidth, int& nOGLHeight)
@@ -82,22 +103,13 @@ END_MESSAGE_MAP()
 // CFormBasedView construction/destruction
 
 CFormBasedView::CFormBasedView()
-noexcept
+	noexcept
 	: CFormView(IDD_FORMBASED_FORM)
-	, m_nHLeftValue(0)
-	, m_nSLeftValue(0)
-	, m_nVLeftValue(0)
-	, m_nRLeftValue(0)
-	, m_nGLeftValue(0)
-	, m_nBLeftValue(0)
-	, m_nHRightValue(255)
-	, m_nSRightValue(255)
-	, m_nVRightValue(255)
-	, m_nRRightValue(255)
-	, m_nGRightValue(255)
-	, m_nBRightValue(255)
 	, m_nDepthMinValue(0)
 	, m_nDepthMaxValue(1000)
+	, m_pPointCloudWindow(NULL)
+	, m_pAppState(NULL)
+	, m_nSACModel(0)
 {
 	// TODO: add construction code here
 
@@ -105,6 +117,15 @@ noexcept
 
 CFormBasedView::~CFormBasedView()
 {
+	if (m_pPointCloudWindow)
+	{
+		m_pPointCloudWindow->close();
+		delete m_pPointCloudWindow;
+	}
+	if (m_pAppState)
+	{
+		delete m_pAppState;
+	}
 }
 
 void CFormBasedView::DoDataExchange(CDataExchange* pDX)
@@ -154,18 +175,18 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_R_RIGHT_VALUE, m_ctrlRRightValue);
 	DDX_Control(pDX, IDC_G_RIGHT_VALUE, m_ctrlGRightValue);
 	DDX_Control(pDX, IDC_B_RIGHT_VALUE, m_ctrlBRightValue);
-	DDX_Text(pDX, IDC_H_LEFT_VALUE, m_nHLeftValue);
-	DDX_Text(pDX, IDC_S_LEFT_VALUE, m_nSLeftValue);
-	DDX_Text(pDX, IDC_V_LEFT_VALUE, m_nVLeftValue);
-	DDX_Text(pDX, IDC_R_LEFT_VALUE, m_nRLeftValue);
-	DDX_Text(pDX, IDC_G_LEFT_VALUE, m_nGLeftValue);
-	DDX_Text(pDX, IDC_B_LEFT_VALUE, m_nBLeftValue);
-	DDX_Text(pDX, IDC_H_RIGHT_VALUE, m_nHRightValue);
-	DDX_Text(pDX, IDC_S_RIGHT_VALUE, m_nSRightValue);
-	DDX_Text(pDX, IDC_V_RIGHT_VALUE, m_nVRightValue);
-	DDX_Text(pDX, IDC_R_RIGHT_VALUE, m_nRRightValue);
-	DDX_Text(pDX, IDC_G_RIGHT_VALUE, m_nGRightValue);
-	DDX_Text(pDX, IDC_B_RIGHT_VALUE, m_nBRightValue);
+	DDX_Text(pDX, IDC_H_LEFT_VALUE, m_colorFilter.leftH);
+	DDX_Text(pDX, IDC_S_LEFT_VALUE, m_colorFilter.leftS);
+	DDX_Text(pDX, IDC_V_LEFT_VALUE, m_colorFilter.leftV);
+	DDX_Text(pDX, IDC_R_LEFT_VALUE, m_colorFilter.leftR);
+	DDX_Text(pDX, IDC_G_LEFT_VALUE, m_colorFilter.leftG);
+	DDX_Text(pDX, IDC_B_LEFT_VALUE, m_colorFilter.leftB);
+	DDX_Text(pDX, IDC_H_RIGHT_VALUE, m_colorFilter.rightH);
+	DDX_Text(pDX, IDC_S_RIGHT_VALUE, m_colorFilter.rightS);
+	DDX_Text(pDX, IDC_V_RIGHT_VALUE, m_colorFilter.rightV);
+	DDX_Text(pDX, IDC_R_RIGHT_VALUE, m_colorFilter.rightR);
+	DDX_Text(pDX, IDC_G_RIGHT_VALUE, m_colorFilter.rightG);
+	DDX_Text(pDX, IDC_B_RIGHT_VALUE, m_colorFilter.rightB);
 	DDX_Control(pDX, IDC_FREEZE, m_ctrlFreeze);
 	DDX_Control(pDX, IDC_DEPTH_MIN, m_ctrlDepthMin);
 	DDX_Control(pDX, IDC_DEPTH_MAX, m_ctrlDepthMax);
@@ -173,8 +194,10 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_DEPTH_MAX_VALUE, m_ctrlDepthMaxValue);
 	DDX_Text(pDX, IDC_DEPTH_MIN_VALUE, m_nDepthMinValue);
 	DDX_Text(pDX, IDC_DEPTH_MAX_VALUE, m_nDepthMaxValue);
-	DDX_Control(pDX, IDC_OGL_OBJECTS, m_PointCloudViewer);
-//	DDX_Control(pDX, IDC_OGL_OBJECTS, test);
+	//	DDX_Control(pDX, IDC_OGL_OBJECTS, m_PointCloudViewer);
+	//	DDX_Control(pDX, IDC_OGL_OBJECTS, test);
+	DDX_Control(pDX, IDC_SAC_MODEL, m_ctrlSACModel);
+	DDX_CBIndex(pDX, IDC_SAC_MODEL, m_nSACModel);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -215,7 +238,13 @@ void CFormBasedView::OnInitialUpdate()
 
 	UpdateData(FALSE);
 
-	m_rsPipe.start();
+	rs2::pipeline_profile profile = m_rsPipe.start();
+
+	rs2::device dev = profile.get_device();
+
+	rs2::depth_sensor ds = dev.query_sensors().front().as<rs2::depth_sensor>();
+	m_fDepthScale = ds.get_depth_scale();
+
 
 	// Setup the OpenGL Window's timer to render
 //	m_PointCloudViewer.m_unpTimer = m_PointCloudViewer.SetTimer(1, 1, 0);
@@ -313,6 +342,17 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	GetDlgItem(IDC_OGL_OBJECTS)->MoveWindow(rectOGLObjects, TRUE);
 	m_rectPointCloudViewer = rectOGLObjects;
 
+	//if (m_pPointCloudWindow == NULL)
+	//{
+	//	m_pPointCloudWindow = new window(rectOGLObjects.Width(), rectOGLObjects.Height(), "");
+	//	m_pAppState = new glfw_state;
+	//}
+
+	//m_pPointCloudWindow->set_size(rectOGLObjects.Width(), rectOGLObjects.Height());
+	//CPoint ptTL = rectOGLObjects.TopLeft();
+	//ClientToScreen(&ptTL);
+	//m_pPointCloudWindow->move(ptTL.x, ptTL.y);
+
 	CRect rectFreeze;
 	m_ctrlFreeze.GetClientRect(&rectFreeze);
 
@@ -402,6 +442,38 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 		}
 	}
 
+	auto ransacX = rectClient.Width() / 2 + nBorder;
+	auto ransacY = rectClient.Height() - nBorder;
+	CRect rectValues;
+	GetDlgItem(IDC_SAC_MODEL)->GetClientRect(&rectValues);
+	auto valueWidth = rectValues.Width();
+	auto valueHeight = rectValues.Height();
+
+	int yPos = ransacY - rectValues.Height();
+
+	for (int i = N_RANSAC_CONTROLS - 1; i >= 0; i--)
+	{
+		CRect rectLabel;
+		GetDlgItem(ransacControls[i].idcLabel)->GetClientRect(&rectLabel);
+
+		int xPos = ransacX;
+
+		GetDlgItem(ransacControls[i].idcLabel)->MoveWindow(xPos, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+		xPos += rectLabel.Width() + SMALL_SPACING;
+
+		int nControls = 0;
+		for (int j = 0; j < 3; j++)
+		{
+			if (ransacControls[i].idcValues[j])
+				nControls++;
+		}
+		for (int j = 0; j < nControls; j++)
+		{
+			GetDlgItem(ransacControls[i].idcValues[j])->MoveWindow(xPos, yPos, (valueWidth - (nControls - 1)*SMALL_SPACING) / nControls, valueHeight);
+			xPos += valueWidth / nControls + SMALL_SPACING/2;
+		}
+		yPos -= valueHeight + SMALL_SPACING;
+	}
 }
 
 
@@ -414,51 +486,12 @@ void CFormBasedView::NewFrame(rs2::frameset& frames)
 					switch (vf.get_profile().stream_type())
 					{
 					case RS2_STREAM_COLOR:
-						m_oglCamera.DrawFrame(vf);
+						m_oglCamera.NewBitmap(vf, m_colorFilter);
 						break;
 					case RS2_STREAM_DEPTH:
-						m_oglDepth.DrawFrame(vf);
+						m_oglDepth.NewBitmap(vf, m_colorFilter);
 						break;
 					}
-		//	auto format = vf.get_profile().format();
-		//	auto width = vf.get_width();
-		//	auto height = vf.get_height();
-
-		//	GLint glInternalFormat, glFormat;
-
-		//	BOOL bValidFrame = TRUE;
-
-		//	switch (format)
-		//	{
-		//	case RS2_FORMAT_RGB8:
-		//		glInternalFormat = GL_RGB;
-		//		glFormat = GL_RGB;
-		//		break;
-		//	case RS2_FORMAT_RGBA8:
-		//		glInternalFormat = GL_RGBA;
-		//		glFormat = GL_RGB;
-		//		break;
-		//	case RS2_FORMAT_Y8:
-		//		glInternalFormat = GL_RGB;
-		//		glFormat = GL_LUMINANCE;
-		//		break;
-		//	default:
-		//		bValidFrame = FALSE;			// Probably gryo or accel data
-		//		break;
-		//	}
-
-		//	if (bValidFrame)
-		//	{
-		//		switch (vf.get_profile().stream_type())
-		//		{
-		//		case RS2_STREAM_COLOR:
-		//			m_oglCamera.DrawFrame(glInternalFormat, width, height, glFormat, vf.get_data());
-		//			break;
-		//		case RS2_STREAM_DEPTH:
-		//			m_oglDepth.DrawFrame(glInternalFormat, width, height, glFormat, vf.get_data());
-		//			break;
-		//		}
-		//	}
 		}
 	}
 
@@ -466,10 +499,28 @@ void CFormBasedView::NewFrame(rs2::frameset& frames)
 
 void CFormBasedView::DoIdleProcessing()
 {
+	static int nSkip = 30;
+
 	if (m_rsPipe.poll_for_frames(&m_rsFrames))
 	{
 		if (m_ctrlFreeze.GetCheck())
 			return;
+
+		auto depth = m_rsFrames.get_depth_frame();
+
+		// Filter the depth
+
+		auto depthWidth = depth.get_width();
+		auto depthHeight = depth.get_height();
+		auto depthPoints = depthWidth * depthHeight;
+		uint16_t* depthData = (uint16_t*)(depth.as<rs2::depth_frame>()).get_data();
+
+		for (int x = 0; x < depthPoints; x++)
+		{
+			float dDepthInCm = depthData[x] * m_fDepthScale * 100;
+			if (dDepthInCm < m_nDepthMinValue || dDepthInCm > m_nDepthMaxValue)
+				depthData[x] = 0;
+		}
 
 		FrameHistogram Hist;
 		rs2::frameset data = m_rsFrames.apply_filter(m_rsPrinter).apply_filter(m_rsColorMap);
@@ -492,24 +543,57 @@ void CFormBasedView::DoIdleProcessing()
 
 		// Declare pointcloud object, for calculating pointclouds and texture mappings
 		rs2::pointcloud pc;
+
 		// We want the points object to be persistent so we can display the last cloud when a frame drops
 		rs2::points points;
 
-		auto depth = m_rsFrames.get_depth_frame();
 		auto color = m_rsFrames.get_color_frame();
 
 		pc.map_to(color);
 
 		// Generate the pointcloud and texture mappings
-		points = pc.calculate(depth);
+//		points = pc.calculate(depth);
 
-		auto pcl_points = points_to_pcl(points, color);
+//		auto pcl_points = points_to_pcl(points, color);
 
-		m_Layers.clear();
-		m_Layers.push_back(new Feature(pcl_points));
-		m_PointCloudViewer.SetFeatures(&m_Layers);
+		//if (m_pPointCloudWindow)
+		//{
+		//	if (!m_pAppState)
+		//	{
+		//		m_pAppState = new glfw_state;
+		//	}
+
+		//	m_pPointCloudWindow->show(color);
+
+		//	// register callbacks to allow manipulation of the pointcloud
+		//	//register_glfw_callbacks(*m_pPointCloudWindow, *m_pAppState);
+		//	//draw_pointcloud(m_rectPointCloudViewer.Width(), m_rectPointCloudViewer.Height(), *m_pAppState, points);
+		//}
+
+		//window app(1280, 720, "Point Cloud");
+		//m_pPointCloudWindow = new window(1280, 720, "PC");
+		//m_pAppState = new glfw_state;
+
+		//glfw_state state;
+
+		//////////if (nSkip-- == 0)
+		//////////{
+		//////////	while (*m_pPointCloudWindow)
+		//////////	//for (int i=0; ; i++)
+		//////////	{
+		//////////		draw_pointcloud(1280, 720, *m_pAppState, points);
+		//////////	}
+		//////////}
+	
+
+		//delete m_pPointCloudWindow;
+		//delete m_pAppState;
+
+		//m_Layers.clear();
+		//m_Layers.push_back(new Feature(pcl_points));
+		//m_PointCloudViewer.SetFeatures(&m_Layers);
 	}
-	m_PointCloudViewer.OnTimer(1);
+	//m_PointCloudViewer.OnTimer(1);
 }
 
 
@@ -538,12 +622,12 @@ void CFormBasedView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 				if (pHS->LeftSlider == id)
 				{
 					((*this).*(pHS->pHistogram)).SetLeftSlider(value);
-					((*this).*(pHS->pLeftValue)) = value;
+					m_colorFilter.*(pHS->pLeftFilter) = value;
 				}
 				if (pHS->RightSlider == id)
 				{
 					((*this).*(pHS->pHistogram)).SetRightSlider(value);
-					((*this).*(pHS->pRightValue)) = value;
+					m_colorFilter.*(pHS->pRightFilter) = value;
 				}
 
 			}
@@ -574,7 +658,7 @@ void CFormBasedView::OnMouseMove(UINT nFlags, CPoint point)
 {
 	if (m_rectPointCloudViewer.PtInRect(point)) {
 		//TRACE(_T("Move: %d, %d    %d, %d\n"), point.x, point.y, point.x - m_rectPointCloudViewer.left, point.y - m_rectPointCloudViewer.top);
-		m_PointCloudViewer.OnMouseMove(nFlags, point);
+		//m_PointCloudViewer.OnMouseMove(nFlags, point);
 	}
 
 	CFormView::OnMouseMove(nFlags, point);

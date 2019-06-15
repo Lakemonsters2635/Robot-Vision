@@ -136,7 +136,7 @@ void COGLVideoControl::oglInitialize(void)
 
 }
 
-void COGLVideoControl::DrawFrame(GLint internal_format, GLsizei image_width, GLsizei image_height, GLenum format, const GLvoid* pixels)
+void COGLVideoControl::NewBitmap(GLint internal_format, GLsizei image_width, GLsizei image_height, GLenum format, const GLvoid* pixels)
 {
 	oglInitialize();
 	GLenum err;

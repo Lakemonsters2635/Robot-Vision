@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "CRealSenseVideo.h"
-
+#include "Utilities.h"
 
 CRealSenseVideo::CRealSenseVideo()
 {
@@ -11,7 +11,21 @@ CRealSenseVideo::~CRealSenseVideo()
 {
 }
 
-void CRealSenseVideo::DrawFrame(rs2::video_frame& frame)
+// return TRUE if pixel should be eliminated.
+
+inline bool Filter(BYTE pixelColor, const int left, const int right)
+{
+	if (left < right)
+	{
+		return pixelColor < left || pixelColor > right;
+	}
+	else
+	{
+		return pixelColor < left && pixelColor > right;
+	}
+}
+
+void CRealSenseVideo::NewBitmap(rs2::video_frame& frame, const ColorFilter& filter)
 {
 	auto format = frame.get_profile().format();
 	if (format != RS2_FORMAT_RGB8)
@@ -46,36 +60,34 @@ void CRealSenseVideo::DrawFrame(rs2::video_frame& frame)
 
 		for (int col = 0; col < width; col++)
 		{
-			//int H = m_pHPixels[(height - (row + 1)) * width + col];
-			bool bCopy = true;
-
-			// Here's where we can filter....
-
-			//if (m_nLeftSlider < m_nRightSlider)
-			//{
-			//	if (H < m_nLeftSlider || H > m_nRightSlider)
-			//	{
-			//		*pDR = 0;
-			//		*pDG = 0;
-			//		*pDB = 0;
-			//		bCopy = false;
-			//	}
-			//}
-			//else
-			//{
-			//	if (H < m_nLeftSlider && H > m_nRightSlider)
-			//	{
-			//		*pDR = 0;
-			//		*pDG = 0;
-			//		*pDB = 0;
-			//		bCopy = false;
-			//	}
-			//}
-			if (bCopy)
+			if (frame.get_profile().stream_type() == RS2_STREAM_COLOR)
 			{
-				*pDR = *pSR;
-				*pDG = *pSG;
-				*pDB = *pSB;
+				uint16_t H, S, V;
+				RgbToHsv(*pSR, *pSG, *pSB, H, S, V);
+
+				if (Filter(H, filter.leftH, filter.rightH)
+					|| Filter(S, filter.leftS, filter.rightS)
+					|| Filter(V, filter.leftV, filter.rightV)
+					|| Filter(*pSR, filter.leftR, filter.rightR)
+					|| Filter(*pSG, filter.leftG, filter.rightG)
+					|| Filter(*pSB, filter.leftB, filter.rightB))
+				{
+					*pDR = 0;
+					*pDG = 0;
+					*pDB = 0;
+				}
+				else
+				{
+					*pDR = *pSR;
+					*pDG = *pSG;
+					*pDB = *pSB;
+				}
+			}
+			else
+			{
+					*pDR = *pSR;
+					*pDG = *pSG;
+					*pDB = *pSB;
 			}
 
 			pDR += 3;
