@@ -17,8 +17,8 @@
 #include <pcl/ModelCoefficients.h>
 
 // Define exactly one of the following and no more.
-#define		PLANE
-#undef		SPHERE
+//#define		PLANE
+#define		SPHERE
 
 
 #ifdef PLANE
@@ -28,6 +28,7 @@
 #define	VOXEL_DENSITY	0.01
 #define	WALL_TOLERANCE	0.09
 #define	DISTANCE_THRESHHOLD		0.01
+#undef	RADIUS_LIMITS
 #endif
 #ifdef SPHERE
 #define		MODEL	pcl::SACMODEL_SPHERE
@@ -39,6 +40,7 @@
 #define	MIN_RADIUS		0.1525
 #define	MAX_RADIUS		0.1775
 #define	DISTANCE_THRESHHOLD		0.005
+#define	RADIUS_LIMITS	MIN_RADIUS , MAX_RADIUS
 #endif
 
 // Struct for managing rotation of pointcloud view
@@ -301,12 +303,11 @@ int main(int argc, char * argv[]) try
 	seg.setModelType(MODEL);
 	seg.setMethodType(pcl::SAC_RANSAC);
 	seg.setMaxIterations(1000);
-#if MODEL==SACMODEL_PLANE
-	seg.setDistanceThreshold(0.01);
-#else
-	seg.setDistanceThreshold(0.005);
-//	seg.setRadiusLimits(0.1, 1.0);
-#endif // MODEL==SACMODEL_PLANE
+	seg.setDistanceThreshold(DISTANCE_THRESHHOLD);
+#ifdef RADIUS_LIMITS
+	seg.setRadiusLimits(RADIUS_LIMITS);
+#endif // RADIUS_LIMITS
+
 
 
 	// Create the filtering object
