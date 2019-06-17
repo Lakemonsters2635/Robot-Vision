@@ -71,9 +71,17 @@
 #define IDC_EPSILON_LABEL               1061
 #define IDC_EPSILON                     1062
 #define IDC_CONE_ANGLE_LABEL            1063
+#define IDC_ENABLE_VOXEL_FILTER         1064
 #define IDC_CONE_ANGLE_MIN              1065
-#define IDC_RADIUS_LIMITS_MAX2          1066
 #define IDC_CONE_ANGLE_MAX              1066
+#define IDC_VOXEL_X                     1067
+#define IDC_VOXEL_Y                     1068
+#define IDC_VOXEL_Z                     1069
+#define IDC_GO                          1070
+#define IDC_LOG                         1071
+#define IDC_MAX_ITERATIONS_LABEL        1072
+#define IDC_DISTANCE_THRESHHOLD2        1073
+#define IDC_MAX_ITERATIONS              1073
 
 // Next default values for new objects
 // 
@@ -81,7 +89,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        312
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1054
+#define _APS_NEXT_CONTROL_VALUE         1072
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

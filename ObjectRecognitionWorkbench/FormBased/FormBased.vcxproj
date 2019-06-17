@@ -191,6 +191,7 @@
     <ClInclude Include="COGLVideoControl.h" />
     <ClInclude Include="CPointCloudViewer.h" />
     <ClInclude Include="CRealSenseVideo.h" />
+    <ClInclude Include="example.hpp" />
     <ClInclude Include="FormBased.h" />
     <ClInclude Include="FormBasedDoc.h" />
     <ClInclude Include="FormBasedView.h" />

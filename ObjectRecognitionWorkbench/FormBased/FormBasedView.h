@@ -7,7 +7,9 @@
 
 #include "CRealSenseVideo.h"
 #include "CHistogram.h"
-#include "CPointCloudViewer.h"
+//#include "CPointCloudViewer.h"
+
+#include "utilities.h"
 
 #define	CAMERA_ASPECT_WIDTH		16.0
 #define	CAMERA_ASPECT_HEIGHT	9.0
@@ -81,6 +83,7 @@ protected:
 // Generated message map functions
 protected:
 	DECLARE_MESSAGE_MAP()
+
 public:
 	CHistogram m_ctrlH;
 	CHistogram m_ctrlS;
@@ -124,17 +127,15 @@ public:
 	CStatic m_ctrlRRightValue;
 	CStatic m_ctrlGRightValue;
 	CStatic m_ctrlBRightValue;
-
-	ColorFilter	m_colorFilter;
-	
 	CButton m_ctrlFreeze;
-
 	CSliderCtrl m_ctrlDepthMin;
 	CSliderCtrl m_ctrlDepthMax;
 	CStatic m_ctrlDepthMinValue;
 	CStatic m_ctrlDepthMaxValue;
-	int m_nDepthMinValue;
-	int m_nDepthMaxValue;
+	CEdit	m_ctrlLog;
+
+protected:
+
 //	CPointCloudViewer m_PointCloudViewer;
 	CRect m_rectPointCloudViewer;
 	std::vector <feature_ptr> m_Layers;
@@ -146,14 +147,39 @@ public:
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void OnDestroy();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnSelChangeSacModel();
+	afx_msg void OnBnClickedEnableVoxelFilter();
+	afx_msg void OnEnChange();
+	afx_msg void OnBnClickedGo();
+
 	CComboBox m_ctrlSACModel;
+	CDWordArray m_RansacIds;
+
+// Parameters that get saved/restored
+// Doc Serializer needs access
+
+	friend void CFormBasedDoc::Serialize(CArchive& ar);
+
+	ColorFilter	m_colorFilter;
+	int m_nDepthMinValue;
+	int m_nDepthMaxValue;
+	int m_bEnableVoxelFilter;
+	float m_fVoxelX;
+	float m_fVoxelY;
+	float m_fVoxelZ;
 	int m_nSACModel;
+	int m_nMaxIterations;
 	float m_fDistanceThreshhold;
 	float m_fRadiusLimitsMin;
 	float m_fRadiusLimitsMax;
 	float m_fAxisX;
 	float m_fAxisY;
 	float m_fAxisZ;
+	float m_fEpsilon;
+	float m_fConeAngleMin;
+	float m_fConeAngleMax;
+	BOOL m_bFreeze;
+public:
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

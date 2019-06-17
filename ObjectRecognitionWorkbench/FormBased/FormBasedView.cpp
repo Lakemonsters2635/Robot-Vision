@@ -13,14 +13,13 @@
 #include "FormBasedView.h"
 #include "Utilities.h"
 
-#include "example.hpp"
 
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#endif
+//#ifdef _DEBUG
+//#define new DEBUG_NEW
+//#endif
 
-typedef struct
+typedef struct 
 {
 	int	Histogram;
 	int Label;
@@ -61,15 +60,60 @@ struct RANSACControls
 
 RANSACControls ransacControls[] = {
 	{ IDC_SAC_MODEL_LABEL, { IDC_SAC_MODEL, 0, 0 } },
+	{ IDC_MAX_ITERATIONS_LABEL, { IDC_MAX_ITERATIONS, 0, 0 } },
 	{ IDC_DISTANCE_THRESHHOLD_LABEL, { IDC_DISTANCE_THRESHHOLD, 0 } },
 	{ IDC_RADIUS_LIMITS_LABEL, { IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
 	{ IDC_AXIS_LABEL, { IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z } },
 	{ IDC_EPSILON_LABEL, { IDC_EPSILON, 0, 0 } },
-	{ IDC_CONE_ANGLE_LABEL, { IDC_CONE_ANGLE_MIN, IDC_CONE_ANGLE_MAX, 0 } }
+//	{ IDC_CONE_ANGLE_LABEL, { IDC_CONE_ANGLE_MIN, IDC_CONE_ANGLE_MAX, 0 } }
 };
 
 #define	N_RANSAC_CONTROLS	(sizeof(ransacControls) / sizeof(ransacControls[0]))
 
+struct RANSACModels
+{
+	enum pcl::SacModel	model;
+	LPCTSTR				model_text;
+	int					enables[20];
+};
+
+RANSACModels ransacModels[] = {
+	{ pcl::SACMODEL_PLANE, _T("Plane"), { 0 } },
+	{ pcl::SACMODEL_LINE, _T("Line"), { 0 } },
+	{ pcl::SACMODEL_CIRCLE2D, _T("Circle2D"), 
+		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	{ pcl::SACMODEL_CIRCLE3D, _T("Circle3D"), 
+		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	{ pcl::SACMODEL_SPHERE, _T("Sphere"), 
+		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	{ pcl::SACMODEL_CYLINDER, _T("Cylinder"), 
+		{ IDC_AXIS_LABEL, IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z, 
+		  IDC_EPSILON_LABEL, IDC_EPSILON, 
+		  IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	//{ pcl::SACMODEL_CONE, _T("Cone"),
+	//	{ IDC_AXIS_LABEL, IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z,
+	//	  IDC_EPSILON_LABEL, IDC_EPSILON,
+	//	  IDC_CONE_ANGLE_LABEL, IDC_CONE_ANGLE_MIN, IDC_CONE_ANGLE_MAX, 0 } },
+//	{ pcl::SACMODEL_TORUS, _T("Torus"), { 0 } },
+	{ pcl::SACMODEL_PARALLEL_LINE, _T("Parallel Line"),
+		{ IDC_AXIS_LABEL, IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z,
+		  IDC_EPSILON_LABEL, IDC_EPSILON, 0 } },
+	{ pcl::SACMODEL_PERPENDICULAR_PLANE, _T("Perpendicular Plane"),
+		{ IDC_AXIS_LABEL, IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z,
+		  IDC_EPSILON_LABEL, IDC_EPSILON, 0 } },
+//	{ pcl::SACMODEL_PARALLEL_LINES, _T("Parallel Lines"), { 0 } },
+//	{ pcl::SACMODEL_NORMAL_PLANE, _T("Normal Plane"), { 0 } },
+//	{ pcl::SACMODEL_NORMAL_SPHERE, _T("Normal Sphere"), { 0 } },
+//	{ pcl::SACMODEL_REGISTRATION, _T("Registration"), { 0 } },
+//	{ pcl::SACMODEL_REGISTRATION_2D, _T("Registration2D"), { 0 } },
+	{ pcl::SACMODEL_PARALLEL_PLANE, _T("Parallel Plane"),
+		{ IDC_AXIS_LABEL, IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z,
+		  IDC_EPSILON_LABEL, IDC_EPSILON, 0 } },
+//	{ pcl::SACMODEL_NORMAL_PARALLEL_PLANE, _T("Normal Parallel Plane"), { 0 } },
+//	{ pcl::SACMODEL_STICK, _T("Stick"), { 0 } },
+};
+
+#define	N_RANSAC_MODELS		(sizeof(ransacModels)/sizeof(ransacModels[0]))
 
 void
 AdjustAspect(int& nOGLWidth, int& nOGLHeight)
@@ -82,7 +126,6 @@ AdjustAspect(int& nOGLWidth, int& nOGLHeight)
 	{
 		nOGLWidth = (int)(nOGLHeight * CAMERA_ASPECT_WIDTH / CAMERA_ASPECT_HEIGHT + 0.5);
 	}
-
 }
 
 // CFormBasedView
@@ -98,24 +141,50 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_WM_HSCROLL()
 	ON_WM_DESTROY()
 	ON_WM_MOUSEMOVE()
+	ON_CBN_SELCHANGE(IDC_SAC_MODEL, OnSelChangeSacModel)
+	ON_BN_CLICKED(IDC_ENABLE_VOXEL_FILTER, &CFormBasedView::OnBnClickedEnableVoxelFilter)
+	ON_EN_CHANGE(IDC_VOXEL_X, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_VOXEL_Y, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_VOXEL_Z, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_DISTANCE_THRESHHOLD, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_RADIUS_LIMITS_MIN, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_RADIUS_LIMITS_MAX, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_AXIS_X, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_AXIS_Y, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_AXIS_Z, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_EPSILON, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_CONE_ANGLE_MIN, &CFormBasedView::OnEnChange)
+	ON_EN_CHANGE(IDC_CONE_ANGLE_MAX, &CFormBasedView::OnEnChange)
+	ON_BN_CLICKED(IDC_GO, &CFormBasedView::OnBnClickedGo)
 END_MESSAGE_MAP()
 
-// CFormBasedView construction/destruction
+	// CFormBasedView construction/destruction
 
-//	noexcept
+	//	
 CFormBasedView::CFormBasedView()
-	: CFormView(IDD_FORMBASED_FORM)
-	, m_nDepthMinValue(0)
-	, m_nDepthMaxValue(1000)
-	, m_pPointCloudWindow(NULL)
-	, m_pAppState(NULL)
-	, m_nSACModel(0)
-	, m_fDistanceThreshhold(0.0)
-	, m_fRadiusLimitsMin(0.0)
-	, m_fRadiusLimitsMax(0.0)
-	, m_fAxisX(0.0)
-	, m_fAxisY(0.0)
-	, m_fAxisZ(0.0)
+noexcept
+: CFormView(IDD_FORMBASED_FORM)
+, m_fDepthScale(0.0)
+, m_nDepthMinValue(0)
+, m_nDepthMaxValue(1000)
+, m_pPointCloudWindow(NULL)
+, m_pAppState(NULL)
+, m_nSACModel(0)
+, m_nMaxIterations(1000)
+, m_fDistanceThreshhold(0.0)
+, m_fRadiusLimitsMin(0.0)
+, m_fRadiusLimitsMax(0.0)
+, m_fAxisX(0.0)
+, m_fAxisY(0.0)
+, m_fAxisZ(0.0)
+, m_fEpsilon(0.0)
+, m_fConeAngleMin(0.0)
+, m_fConeAngleMax(0.0)
+, m_fVoxelX(0)
+, m_fVoxelY(0)
+, m_fVoxelZ(0)
+, m_bEnableVoxelFilter(0)
+, m_bFreeze(TRUE)
 {
 	// TODO: add construction code here
 
@@ -123,15 +192,15 @@ CFormBasedView::CFormBasedView()
 
 CFormBasedView::~CFormBasedView()
 {
-	if (m_pPointCloudWindow)
-	{
-		m_pPointCloudWindow->close();
-		delete m_pPointCloudWindow;
-	}
-	if (m_pAppState)
-	{
-		delete m_pAppState;
-	}
+	//if (m_pPointCloudWindow)
+	//{
+	//	m_pPointCloudWindow->close();
+	//	delete m_pPointCloudWindow;
+	//}
+	//if (m_pAppState)
+	//{
+	//	delete m_pAppState;
+	//}
 }
 
 void CFormBasedView::DoDataExchange(CDataExchange* pDX)
@@ -181,6 +250,7 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_R_RIGHT_VALUE, m_ctrlRRightValue);
 	DDX_Control(pDX, IDC_G_RIGHT_VALUE, m_ctrlGRightValue);
 	DDX_Control(pDX, IDC_B_RIGHT_VALUE, m_ctrlBRightValue);
+	DDX_Control(pDX, IDC_LOG, m_ctrlLog);
 	DDX_Text(pDX, IDC_H_LEFT_VALUE, m_colorFilter.leftH);
 	DDX_Text(pDX, IDC_S_LEFT_VALUE, m_colorFilter.leftS);
 	DDX_Text(pDX, IDC_V_LEFT_VALUE, m_colorFilter.leftV);
@@ -203,14 +273,34 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	//	DDX_Control(pDX, IDC_OGL_OBJECTS, m_PointCloudViewer);
 	//	DDX_Control(pDX, IDC_OGL_OBJECTS, test);
 	DDX_Control(pDX, IDC_SAC_MODEL, m_ctrlSACModel);
-	DDX_CBIndex(pDX, IDC_SAC_MODEL, m_nSACModel);
+	DDX_Text(pDX, IDC_MAX_ITERATIONS, m_nMaxIterations);
+	DDV_MinMaxFloat(pDX, m_nMaxIterations, 1, 1000);
 	DDX_Text(pDX, IDC_DISTANCE_THRESHHOLD, m_fDistanceThreshhold);
 	DDV_MinMaxFloat(pDX, m_fDistanceThreshhold, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_RADIUS_LIMITS_MIN, m_fRadiusLimitsMin);
 	DDV_MinMaxFloat(pDX, m_fRadiusLimitsMin, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_RADIUS_LIMITS_MAX, m_fRadiusLimitsMax);
 	DDV_MinMaxFloat(pDX, m_fRadiusLimitsMax, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_AXIS_X, m_fAxisX);
 	DDV_MinMaxFloat(pDX, m_fAxisX, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_AXIS_Y, m_fAxisY);
 	DDV_MinMaxFloat(pDX, m_fAxisY, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_AXIS_Z, m_fAxisZ);
 	DDV_MinMaxFloat(pDX, m_fAxisZ, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_EPSILON, m_fEpsilon);
+	DDV_MinMaxFloat(pDX, m_fEpsilon, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_CONE_ANGLE_MIN, m_fConeAngleMin);
+	DDV_MinMaxFloat(pDX, m_fConeAngleMin, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_CONE_ANGLE_MAX, m_fConeAngleMax);
+	DDV_MinMaxFloat(pDX, m_fConeAngleMax, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_VOXEL_X, m_fVoxelX);
+	DDV_MinMaxFloat(pDX, m_fVoxelX, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_VOXEL_Y, m_fVoxelY);
+	DDV_MinMaxFloat(pDX, m_fVoxelY, 0.0, FLT_MAX);
+	DDX_Text(pDX, IDC_VOXEL_Z, m_fVoxelZ);
+	DDV_MinMaxFloat(pDX, m_fVoxelZ, 0.0, FLT_MAX);
+	DDX_Check(pDX, IDC_ENABLE_VOXEL_FILTER, m_bEnableVoxelFilter);
+	DDX_Check(pDX, IDC_FREEZE, m_bFreeze);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -251,13 +341,60 @@ void CFormBasedView::OnInitialUpdate()
 
 	UpdateData(FALSE);
 
-	rs2::pipeline_profile profile = m_rsPipe.start();
+	if (m_fDepthScale == 0)
+	{
+		rs2::pipeline_profile profile = m_rsPipe.start();
 
-	rs2::device dev = profile.get_device();
+		rs2::device dev = profile.get_device();
 
-	rs2::depth_sensor ds = dev.query_sensors().front().as<rs2::depth_sensor>();
-	m_fDepthScale = ds.get_depth_scale();
+		rs2::depth_sensor ds = dev.query_sensors().front().as<rs2::depth_sensor>();
+		m_fDepthScale = ds.get_depth_scale();
+	}
 
+	if (m_RansacIds.GetSize() == 0)
+	{
+		m_ctrlSACModel.ResetContent();
+		int nIdx = m_ctrlSACModel.AddString(_T(""));
+		m_ctrlSACModel.SetItemData(nIdx, 0);
+
+		for (int i = 0; i < N_RANSAC_MODELS; i++)
+		{
+			int nIdx = m_ctrlSACModel.AddString(ransacModels[i].model_text);
+			m_ctrlSACModel.SetItemData(nIdx, ransacModels[i].model);
+			int testID;
+			for (int j = 0; (testID = ransacModels[i].enables[j]); j++)
+			{
+				int k;
+				for (k = 0; k < m_RansacIds.GetSize(); k++)
+				{
+					if (m_RansacIds[k] == testID)
+						break;
+				}
+				if (k == m_RansacIds.GetSize())
+				{
+					m_RansacIds.Add(testID);
+				}
+			}
+		}
+
+		//	m_ctrlSACModel.SelectString(-1, _T(""));
+		UpdateData(FALSE);
+	}
+
+	for (int i = 0; i < m_ctrlSACModel.GetCount(); i++)
+	{
+		if (m_ctrlSACModel.GetItemData(i) == m_nSACModel)
+		{
+			m_ctrlSACModel.SetCurSel(i);
+			break;
+		}
+	}
+
+	OnSelChangeSacModel();		// Update the UI
+	OnEnChange();
+	OnBnClickedEnableVoxelFilter();
+
+	GetDocument()->SetModifiedFlag(FALSE);
 
 	// Setup the OpenGL Window's timer to render
 //	m_PointCloudViewer.m_unpTimer = m_PointCloudViewer.SetTimer(1, 1, 0);
@@ -463,13 +600,14 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	auto valueHeight = rectValues.Height();
 
 	int yPos = ransacY - rectValues.Height();
+	int xPos;
+
+	CRect rectLabel;
+	GetDlgItem(ransacControls[0].idcLabel)->GetClientRect(&rectLabel);
 
 	for (int i = N_RANSAC_CONTROLS - 1; i >= 0; i--)
 	{
-		CRect rectLabel;
-		GetDlgItem(ransacControls[i].idcLabel)->GetClientRect(&rectLabel);
-
-		int xPos = ransacX;
+		xPos = ransacX;
 
 		GetDlgItem(ransacControls[i].idcLabel)->MoveWindow(xPos, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
 		xPos += rectLabel.Width() + SMALL_SPACING;
@@ -487,6 +625,28 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 		}
 		yPos -= valueHeight + SMALL_SPACING;
 	}
+
+	yPos -= 5 * SMALL_SPACING;
+	xPos = ransacX;
+	GetDlgItem(IDC_ENABLE_VOXEL_FILTER)->MoveWindow(xPos, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	xPos += rectLabel.Width() + SMALL_SPACING;
+	GetDlgItem(IDC_VOXEL_X)->MoveWindow(xPos, yPos, (valueWidth - 2 * SMALL_SPACING) / 3, valueHeight);
+	xPos += valueWidth / 3 + SMALL_SPACING / 2;
+	GetDlgItem(IDC_VOXEL_Y)->MoveWindow(xPos, yPos, (valueWidth - 2 * SMALL_SPACING) / 3, valueHeight);
+	xPos += valueWidth / 3 + SMALL_SPACING / 2;
+	GetDlgItem(IDC_VOXEL_Z)->MoveWindow(xPos, yPos, (valueWidth - 2 * SMALL_SPACING) / 3, valueHeight);
+	xPos += valueWidth / 3 + SMALL_SPACING / 2;
+
+	CRect rectLog;
+	rectLog.left = xPos + nBorder;
+	rectLog.right = rectClient.right - nBorder;
+	rectLog.bottom = rectClient.bottom - 4 * nBorder;
+	rectLog.top = rectClient.bottom / 2;
+	GetDlgItem(IDC_LOG)->MoveWindow(rectLog, TRUE);
+
+	CRect rectGo;
+	GetDlgItem(IDC_GO)->GetClientRect(&rectGo);
+	GetDlgItem(IDC_GO)->MoveWindow(CRect(CPoint(rectClient.right - nBorder - rectGo.Width(), rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
 }
 
 
@@ -514,7 +674,7 @@ void CFormBasedView::DoIdleProcessing()
 {
 	static int nSkip = 30;
 
-	if (m_rsPipe.poll_for_frames(&m_rsFrames))
+	if (m_fDepthScale != 0 && m_rsPipe.poll_for_frames(&m_rsFrames))
 	{
 		if (m_ctrlFreeze.GetCheck())
 			return;
@@ -552,7 +712,7 @@ void CFormBasedView::DoIdleProcessing()
 		INIT_HIST(G, 0);
 		INIT_HIST(B, 0);
 
-		UpdateData(FALSE);
+		//UpdateData(FALSE);
 
 		// Declare pointcloud object, for calculating pointclouds and texture mappings
 		rs2::pointcloud pc;
@@ -563,48 +723,6 @@ void CFormBasedView::DoIdleProcessing()
 		auto color = m_rsFrames.get_color_frame();
 
 		pc.map_to(color);
-
-		// Generate the pointcloud and texture mappings
-//		points = pc.calculate(depth);
-
-//		auto pcl_points = points_to_pcl(points, color);
-
-		//if (m_pPointCloudWindow)
-		//{
-		//	if (!m_pAppState)
-		//	{
-		//		m_pAppState = new glfw_state;
-		//	}
-
-		//	m_pPointCloudWindow->show(color);
-
-		//	// register callbacks to allow manipulation of the pointcloud
-		//	//register_glfw_callbacks(*m_pPointCloudWindow, *m_pAppState);
-		//	//draw_pointcloud(m_rectPointCloudViewer.Width(), m_rectPointCloudViewer.Height(), *m_pAppState, points);
-		//}
-
-		//window app(1280, 720, "Point Cloud");
-		//m_pPointCloudWindow = new window(1280, 720, "PC");
-		//m_pAppState = new glfw_state;
-
-		//glfw_state state;
-
-		//////////if (nSkip-- == 0)
-		//////////{
-		//////////	while (*m_pPointCloudWindow)
-		//////////	//for (int i=0; ; i++)
-		//////////	{
-		//////////		draw_pointcloud(1280, 720, *m_pAppState, points);
-		//////////	}
-		//////////}
-	
-
-		//delete m_pPointCloudWindow;
-		//delete m_pAppState;
-
-		//m_Layers.clear();
-		//m_Layers.push_back(new Feature(pcl_points));
-		//m_PointCloudViewer.SetFeatures(&m_Layers);
 	}
 	//m_PointCloudViewer.OnTimer(1);
 }
@@ -612,6 +730,8 @@ void CFormBasedView::DoIdleProcessing()
 
 void CFormBasedView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
+	UpdateData(TRUE);
+
 	int value = ((CSliderCtrl*)pScrollBar)->GetPos();
 	auto id = pScrollBar->GetDlgCtrlID();
 
@@ -648,6 +768,7 @@ void CFormBasedView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	}
 	UpdateData(FALSE);
 
+	GetDocument()->SetModifiedFlag(TRUE);
 
 	//BuildBitmapFromFrame();
 	//m_Image.Invalidate(TRUE);
@@ -676,3 +797,220 @@ void CFormBasedView::OnMouseMove(UINT nFlags, CPoint point)
 
 	CFormView::OnMouseMove(nFlags, point);
 }
+
+void CFormBasedView::OnSelChangeSacModel()
+{
+	UpdateData(TRUE);
+
+	int nIdx = m_ctrlSACModel.GetCurSel();
+	if (nIdx == -1)
+		return;
+
+	m_nSACModel = m_ctrlSACModel.GetItemData(nIdx);
+
+	GetDocument()->SetModifiedFlag(TRUE);
+
+	// Disable all controls
+
+	for (int i = 0; i < m_RansacIds.GetSize(); i++)
+	{
+		GetDlgItem(m_RansacIds[i])->EnableWindow(FALSE);
+	}
+
+	if (m_nSACModel == 0) {
+		GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(FALSE);
+		GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(FALSE);
+		return;
+	}
+
+	GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(TRUE);
+	GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(TRUE);
+
+	// Enable the ones we need
+
+	for (int i = 0; i < N_RANSAC_MODELS; i++)
+	{
+		if (m_nSACModel == ransacModels[i].model)
+		{
+			int enableID;
+
+			for (int j = 0; (enableID = ransacModels[i].enables[j]); j++)
+			{
+				GetDlgItem(enableID)->EnableWindow(TRUE);
+			}
+			break;
+		}
+	}
+}
+
+
+
+void CFormBasedView::OnBnClickedEnableVoxelFilter()
+{
+	UpdateData(TRUE);
+
+	GetDlgItem(IDC_VOXEL_X)->EnableWindow(m_bEnableVoxelFilter);
+	GetDlgItem(IDC_VOXEL_Y)->EnableWindow(m_bEnableVoxelFilter);
+	GetDlgItem(IDC_VOXEL_Z)->EnableWindow(m_bEnableVoxelFilter);
+
+	GetDocument()->SetModifiedFlag(TRUE);
+}
+
+
+void CFormBasedView::OnEnChange()
+{
+	GetDocument()->SetModifiedFlag(TRUE);
+}
+
+
+void CFormBasedView::OnBnClickedGo()
+{
+	UpdateData(TRUE);
+
+	m_Layers.clear();
+
+	// Declare pointcloud object, for calculating pointclouds and texture mappings
+	rs2::pointcloud pc;
+
+	// We want the points object to be persistent so we can display the last cloud when a frame drops
+	rs2::points points;
+
+	auto depth = m_rsFrames.get_depth_frame();
+	auto color = m_rsFrames.get_color_frame();
+
+	pc.map_to(color);
+
+	// Generate the pointcloud and texture mappings
+	points = pc.calculate(depth);
+
+	auto pcl_points = points_to_pcl(points, color, m_colorFilter);
+
+	pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
+
+	PrintToScreen(m_ctrlLog, _T("PointCloud before filtering %d data points\n"), pcl_points->width * pcl_points->height);
+
+	//========================================
+	// Filter PointCloud (PassThrough Method)
+	//========================================
+	pcl::PointCloud<pcl::PointXYZ>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+	pcl::PassThrough<pcl::PointXYZ> Cloud_Filter; // Create the filtering object
+	Cloud_Filter.setInputCloud(pcl_points);           // Input generated cloud to filter
+	Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
+	Cloud_Filter.setFilterLimits(m_nDepthMinValue/100.0, m_nDepthMaxValue/100.0);      // Set accepted interval values
+	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
+	pcl::toPCLPointCloud2(*newCloud, *cloud_blob);
+	PrintToScreen(m_ctrlLog, _T("PointCloud after depth and color filtering %d data points\n"), newCloud->width * newCloud->height);
+
+	// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
+	pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+	sor.setInputCloud(cloud_blob);
+	sor.setLeafSize(m_fVoxelX, m_fVoxelY, m_fVoxelZ);
+	sor.filter(*cloud_filtered_blob);
+
+	// Convert to the templated PointCloud
+	pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
+
+	PrintToScreen(m_ctrlLog, _T("PointCloud after volume filtering: %d data points\n"), cloud_filtered->width * cloud_filtered->height);
+
+	m_Layers.push_back(new Feature(cloud_filtered));
+
+	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+	pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+	// Create the segmentation object
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	// Optional
+	seg.setOptimizeCoefficients(true);
+	// Mandatory
+	seg.setModelType(m_nSACModel);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setMaxIterations(m_nMaxIterations);
+	seg.setDistanceThreshold(m_fDistanceThreshhold);
+
+	if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	//if (m_fRadiusLimitsMin > 0 || m_fRadiusLimitsMax > 0)
+		seg.setRadiusLimits(m_fRadiusLimitsMin, m_fRadiusLimitsMax);
+
+	if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	{
+		Eigen::Vector3f axis(m_fAxisX, m_fAxisY, m_fAxisZ);
+		seg.setAxis(axis);
+	}
+
+	if ((GetDlgItem(IDC_EPSILON_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	{
+		seg.setEpsAngle(m_fEpsilon);
+	}
+
+	//if ((GetDlgItem(IDC_CONE_ANGLE_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	//{
+	//	seg.setMinMaxOpeningAngle(m_fConeAngleMin, m_fConeAngleMax);
+	//}
+
+	// Create the filtering object
+	pcl::ExtractIndices<pcl::PointXYZ> extract;
+
+	CString strModelName;
+	for (int x = 0; x < N_RANSAC_MODELS; x++)
+	{
+		if (ransacModels[x].model == m_nSACModel)
+		{
+			strModelName = ransacModels[x].model_text;
+			break;
+		}
+	}
+
+	int i = 0, nr_points = (int)cloud_filtered->points.size();
+	// While 30% of the original cloud is still there
+	while (cloud_filtered->points.size() > 0.3 * nr_points)
+	{
+		// Segment the largest planar component from the remaining cloud
+		seg.setInputCloud(cloud_filtered);
+		seg.segment(*inliers, *coefficients);
+		if (inliers->indices.size() == 0)
+		{
+			PrintToScreen(m_ctrlLog, _T("Could not estimate a %s model for the given dataset.\n"), strModelName);
+			break;
+		}
+
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
+
+		// Extract the inliers
+		extract.setInputCloud(cloud_filtered);
+		extract.setIndices(inliers);
+		extract.setNegative(false);
+		extract.filter(*cloud_p);
+
+#ifdef WALL_TOLERANCE
+		if (coefficients->values[1] <= WALL_TOLERANCE)		// look for vertical walls
+#endif // WALL_TOLERANCE
+#ifdef MIN_RADIUS
+			if (coefficients->values[3] < MAX_RADIUS && coefficients->values[3] > MIN_RADIUS)
+#endif // MIN_RADIUS
+			{
+				PrintToScreen(m_ctrlLog, _T("PointCloud representing the %s component: %d\n"), strModelName, cloud_p->width * cloud_p->height);
+				PrintToScreen(m_ctrlLog, _T("Model Coefficients:\nheader:\n"));
+				PrintModelCoefficients(m_ctrlLog, *coefficients);
+				feature_ptr p = new Feature(cloud_p);
+				pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
+				p->coefficients = c;
+				m_Layers.push_back(p);
+			}
+
+		//ShowCloud(cloud_p);
+
+		// Create the filtering object
+		extract.setNegative(true);
+		extract.filter(*cloud_f);
+		cloud_filtered.swap(cloud_f);
+		i++;
+		if (m_Layers.size() >= (N_COLORS - 1))
+			break;
+	}
+
+	draw_pointcloud(m_Layers);
+}
+
+

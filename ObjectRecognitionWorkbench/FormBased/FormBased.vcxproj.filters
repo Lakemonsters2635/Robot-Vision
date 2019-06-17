@@ -48,6 +48,9 @@
     <ClInclude Include="CPointCloudViewer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="example.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="CRealSenseVideo.h">
       <Filter>Header Files</Filter>
     </ClInclude>

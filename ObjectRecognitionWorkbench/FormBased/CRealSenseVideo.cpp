@@ -13,18 +13,6 @@ CRealSenseVideo::~CRealSenseVideo()
 
 // return TRUE if pixel should be eliminated.
 
-inline bool Filter(BYTE pixelColor, const int left, const int right)
-{
-	if (left < right)
-	{
-		return pixelColor < left || pixelColor > right;
-	}
-	else
-	{
-		return pixelColor < left && pixelColor > right;
-	}
-}
-
 void CRealSenseVideo::NewBitmap(rs2::video_frame& frame, const ColorFilter& filter)
 {
 	auto format = frame.get_profile().format();

@@ -10,6 +10,7 @@
 #endif
 
 #include "FormBasedDoc.h"
+#include "FormBasedView.h"
 
 #include <propkey.h>
 
@@ -53,15 +54,63 @@ BOOL CFormBasedDoc::OnNewDocument()
 
 // CFormBasedDoc serialization
 
+//#define	CURRENT_REV	1		// initial version
+#define		CURRENT_REV	2		// Added m_nMaxIterations
+
 void CFormBasedDoc::Serialize(CArchive& ar)
 {
+	POSITION pos = GetFirstViewPosition();
+	CFormBasedView* pView = reinterpret_cast<CFormBasedView*> (GetNextView(pos));
+
 	if (ar.IsStoring())
 	{
-		// TODO: add storing code here
+		ar << CURRENT_REV;
+		ar.Write(&pView->m_colorFilter, sizeof(pView->m_colorFilter));
+		ar << pView->m_nDepthMinValue;
+		ar << pView->m_nDepthMaxValue;
+		ar << pView->m_bEnableVoxelFilter;
+		ar << pView->m_fVoxelX;
+		ar << pView->m_fVoxelY;
+		ar << pView->m_fVoxelZ;
+		ar << pView->m_nSACModel;
+		ar << pView->m_nMaxIterations;
+		ar << pView->m_fDistanceThreshhold;
+		ar << pView->m_fRadiusLimitsMin;
+		ar << pView->m_fRadiusLimitsMax;
+		ar << pView->m_fAxisX;
+		ar << pView->m_fAxisY;
+		ar << pView->m_fAxisZ;
+		ar << pView->m_fEpsilon;
+		ar << pView->m_fConeAngleMin;
+		ar << pView->m_fConeAngleMax;
 	}
 	else
 	{
-		// TODO: add loading code here
+		int nRev;
+
+		ar >> nRev;
+
+		ar.Read(&pView->m_colorFilter, sizeof(pView->m_colorFilter));
+		ar >> pView->m_nDepthMinValue;
+		ar >> pView->m_nDepthMaxValue;
+		ar >> pView->m_bEnableVoxelFilter;
+		ar >> pView->m_fVoxelX;
+		ar >> pView->m_fVoxelY;
+		ar >> pView->m_fVoxelZ;
+		ar >> pView->m_nSACModel;
+		if (nRev >= 2)
+			ar >> pView->m_nMaxIterations;
+		ar >> pView->m_fDistanceThreshhold;
+		ar >> pView->m_fRadiusLimitsMin;
+		ar >> pView->m_fRadiusLimitsMax;
+		ar >> pView->m_fAxisX;
+		ar >> pView->m_fAxisY;
+		ar >> pView->m_fAxisZ;
+		ar >> pView->m_fEpsilon;
+		ar >> pView->m_fConeAngleMin;
+		ar >> pView->m_fConeAngleMax;
+
+		pView->UpdateData(FALSE);
 	}
 }
 
@@ -135,3 +184,4 @@ void CFormBasedDoc::Dump(CDumpContext& dc) const
 
 
 // CFormBasedDoc commands
+

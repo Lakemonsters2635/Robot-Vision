@@ -830,11 +830,11 @@ void register_glfw_callbacks(window& app, glfw_state& app_state)
         if (app_state.ml)
         {
             app_state.yaw -= (x - app_state.last_x);
-            app_state.yaw = max(app_state.yaw, -120.0);
-            app_state.yaw = min(app_state.yaw, +120.0);
+            app_state.yaw = std::max(app_state.yaw, -120.0);
+            app_state.yaw = std::min(app_state.yaw, +120.0);
             app_state.pitch += (y - app_state.last_y);
-            app_state.pitch = max(app_state.pitch, -80.0);
-            app_state.pitch = min(app_state.pitch, +80.0);
+            app_state.pitch = std::max(app_state.pitch, -80.0);
+            app_state.pitch = std::min(app_state.pitch, +80.0);
         }
         app_state.last_x = x;
         app_state.last_y = y;
