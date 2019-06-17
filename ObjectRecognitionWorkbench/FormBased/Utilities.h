@@ -108,3 +108,5 @@ void draw_pointcloud(const std::vector <feature_ptr>& layers);
 
 void PrintToScreen(CEdit& Edit, LPCTSTR pszFormat, ...);
 void PrintModelCoefficients(CEdit& Edit, pcl::ModelCoefficients& v);
+
+double ConvertToSeconds(LONGLONG time);

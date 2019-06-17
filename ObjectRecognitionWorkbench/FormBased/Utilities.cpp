@@ -218,9 +218,9 @@ pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, 
 
 // Struct for managing rotation of pointcloud view
 struct state {
-	state() : yaw(0.0), pitch(0.0), last_x(0.0), last_y(0.0),
-		ml(false), offset_x(0.0f), offset_y(0.0f), mask(-1), info(false) {}
-	double yaw, pitch, last_x, last_y; bool ml; float offset_x, offset_y;
+	state() : yaw(0.0), pitch(0.0), panx(0.0), pany(0.0), last_x(0.0), last_y(0.0),
+		ml(false), mm(false), offset_x(0.0f), offset_y(0.0f), mask(-1), info(false) {}
+	double yaw, pitch, panx, pany, last_x, last_y; bool ml; bool mm; float offset_x, offset_y;
 	unsigned long long mask;
 	bool info;
 	int coef_sel;
@@ -240,6 +240,11 @@ static void register_glfw_callbacks(window& app, state& app_state)
 		app_state.ml = pressed;
 	};
 
+	app.on_right_mouse = [&](bool pressed)
+	{
+		app_state.mm = pressed;
+	};
+
 	app.on_mouse_scroll = [&](double xoffset, double yoffset)
 	{
 		app_state.offset_x += static_cast<float>(xoffset);
@@ -255,6 +260,11 @@ static void register_glfw_callbacks(window& app, state& app_state)
 			app_state.pitch += (y - app_state.last_y);
 			app_state.pitch = Mod180(app_state.pitch);
 		}
+		else if (app_state.mm)
+		{
+
+		}
+		
 		app_state.last_x = x;
 		app_state.last_y = y;
 	};
@@ -312,67 +322,6 @@ static void register_glfw_callbacks(window& app, state& app_state)
 }
 
 
-//// Handles all the OpenGL calls needed to display the point cloud
-//void draw_pointcloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
-//{
-//	window app(1280, 720, "Point Cloud");
-//
-//	state app_state;
-//	// register callbacks to allow manipulation of the pointcloud
-//	register_glfw_callbacks(app, app_state);
-//
-//	// OpenGL commands that prep screen for the pointcloud
-//	glPopMatrix();
-//	glPushAttrib(GL_ALL_ATTRIB_BITS);
-//
-//	float width = app.width(), height = app.height();
-//
-//	//	glClearColor(153.f / 255, 153.f / 255, 153.f / 255, 1);
-//	glClearColor(0.0, 0.0, 0.0, 1);
-//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//
-//	glMatrixMode(GL_PROJECTION);
-//	glPushMatrix();
-//	gluPerspective(60, width / height, 0.01f, 10.0f);
-//
-//	glMatrixMode(GL_MODELVIEW);
-//	glPushMatrix();
-//	gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
-//
-//	glTranslatef(0, 0, +0.5f + app_state.offset_y*0.05f);
-//	glRotated(app_state.pitch, 1, 0, 0);
-//	glRotated(app_state.yaw, 0, 1, 0);
-//	glTranslatef(0, 0, -0.5f);
-//
-//	glPointSize(width / 640);
-//	glEnable(GL_TEXTURE_2D);
-//
-//
-//
-//		glBegin(GL_POINTS);
-//		glColor3f(1.0f, 1.0f, 1.0f);
-//
-//		/* this segment actually prints the pointcloud */
-//		for (int i = 0; i < cloud->points.size(); i++)
-//		{
-//			auto&& p = cloud->points[i];
-//			if (p.z)
-//			{
-//				// upload the point and texture coordinates only for points we have depth data for
-//				glVertex3f(p.x, p.y, p.z);
-//			}
-//		}
-//
-//		glEnd();
-//
-//	// OpenGL cleanup
-//	glPopMatrix();
-//	glMatrixMode(GL_PROJECTION);
-//	glPopMatrix();
-//	glPopAttrib();
-//	glPushMatrix();
-//}
-
 
 void PrintToScreen(CEdit& Edit, LPCTSTR pszFormat, ...)
 {
@@ -407,7 +356,7 @@ void PrintModelCoefficients(CEdit& Edit, pcl::ModelCoefficients& v)
 	PrintToScreen(Edit, _T("values[]\n"));
 	for (size_t i = 0; i < v.values.size(); ++i)
 	{
-		PrintToScreen(Edit, _T("  values[%d]   %f\n"), i, v.values[i]);
+		PrintToScreen(Edit, _T("  values[%d]   %f m    %f in\n"), i, v.values[i], v.values[i]*39.37);
 	}
 }
 
@@ -515,4 +464,14 @@ void draw_pointcloud(const std::vector <feature_ptr>& features)
 		glPopAttrib();
 		glPushMatrix();
 	}
+}
+
+static 	LARGE_INTEGER	s_PerformanceFrequency = { 0, 0 };
+
+double ConvertToSeconds(LONGLONG time)
+{
+	if (s_PerformanceFrequency.QuadPart == 0)
+		::QueryPerformanceFrequency(&s_PerformanceFrequency);
+
+	return ((double)time) / s_PerformanceFrequency.QuadPart;
 }
