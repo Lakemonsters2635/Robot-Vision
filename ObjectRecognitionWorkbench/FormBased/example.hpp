@@ -477,7 +477,9 @@ class window
 {
 public:
     std::function<void(bool)>           on_left_mouse = [](bool) {};
-    std::function<void(double, double)> on_mouse_scroll = [](double, double) {};
+	std::function<void(bool)>           on_middle_mouse = [](bool) {};
+	std::function<void(bool)>           on_right_mouse = [](bool) {};
+	std::function<void(double, double)> on_mouse_scroll = [](double, double) {};
     std::function<void(double, double)> on_mouse_move = [](double, double) {};
     std::function<void(int)>            on_key_release = [](int) {};
 
@@ -497,7 +499,9 @@ public:
         {
             auto s = (window*)glfwGetWindowUserPointer(w);
             if (button == 0) s->on_left_mouse(action == GLFW_PRESS);
-        });
+			if (button == 1) s->on_middle_mouse(action == GLFW_PRESS); 
+			if (button == 2) s->on_right_mouse(action == GLFW_PRESS);
+			});
 
         glfwSetScrollCallback(win, [](GLFWwindow * w, double xoffset, double yoffset)
         {
