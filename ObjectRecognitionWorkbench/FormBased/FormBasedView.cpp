@@ -186,8 +186,6 @@ noexcept
 , m_bEnableVoxelFilter(0)
 , m_bFreeze(TRUE)
 {
-	// TODO: add construction code here
-
 }
 
 CFormBasedView::~CFormBasedView()
@@ -322,22 +320,25 @@ void CFormBasedView::OnInitialUpdate()
 	{
 		for (int x = 0; x < 3; x++)
 		{
-			pSlider = (CSliderCtrl*)GetDlgItem(histogramSet[y][x].LeftSlider);
+			HistogramSet*	pHS = &histogramSet[y][x];
+
+			pSlider = (CSliderCtrl*)GetDlgItem(pHS->LeftSlider);
 			pSlider->SetRange(0, 255);
-			pSlider->SetPos(0);
-			pSlider = (CSliderCtrl*)GetDlgItem(histogramSet[y][x].RightSlider);
+			pSlider->SetPos(m_colorFilter.*(pHS->pLeftFilter));
+			pSlider = (CSliderCtrl*)GetDlgItem(pHS->RightSlider);
 			pSlider->SetRange(0, 255);
-			pSlider->SetPos(0);
+			pSlider->SetPos(m_colorFilter.*(pHS->pRightFilter));
+			
 		}
 	}
 
 	pSlider = (CSliderCtrl*)GetDlgItem(IDC_DEPTH_MAX);
 	pSlider->SetRange(0, 1000);
-	pSlider->SetPos(1000);
+	pSlider->SetPos(m_nDepthMaxValue);
 
 	pSlider = (CSliderCtrl*)GetDlgItem(IDC_DEPTH_MIN);
 	pSlider->SetRange(0, 1000);
-	pSlider->SetPos(0);
+	pSlider->SetPos(m_nDepthMinValue);
 
 	UpdateData(FALSE);
 
@@ -890,6 +891,11 @@ void CFormBasedView::OnBnClickedGo()
 
 	PrintToScreen(m_ctrlLog, _T("PointCloud before filtering %d data points\n"), pcl_points->width * pcl_points->height);
 
+	// Get starting time
+
+	LARGE_INTEGER liStart;
+	::QueryPerformanceCounter(&liStart);
+
 	//========================================
 	// Filter PointCloud (PassThrough Method)
 	//========================================
@@ -901,7 +907,12 @@ void CFormBasedView::OnBnClickedGo()
 	Cloud_Filter.setFilterLimits(m_nDepthMinValue/100.0, m_nDepthMaxValue/100.0);      // Set accepted interval values
 	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
 	pcl::toPCLPointCloud2(*newCloud, *cloud_blob);
-	PrintToScreen(m_ctrlLog, _T("PointCloud after depth and color filtering %d data points\n"), newCloud->width * newCloud->height);
+
+	LARGE_INTEGER liDepthAndColor;
+	::QueryPerformanceCounter(&liDepthAndColor);
+
+	PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud after depth and color filtering %d data points\n"),
+		ConvertToSeconds(liDepthAndColor.QuadPart - liStart.QuadPart), newCloud->width * newCloud->height);
 
 	// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
 	pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
@@ -912,7 +923,11 @@ void CFormBasedView::OnBnClickedGo()
 	// Convert to the templated PointCloud
 	pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
 
-	PrintToScreen(m_ctrlLog, _T("PointCloud after volume filtering: %d data points\n"), cloud_filtered->width * cloud_filtered->height);
+	LARGE_INTEGER liVolume;
+	::QueryPerformanceCounter(&liVolume);
+
+	PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud after volume filtering: %d data points\n"), 
+		ConvertToSeconds(liVolume.QuadPart - liDepthAndColor.QuadPart), cloud_filtered->width * cloud_filtered->height);
 
 	m_Layers.push_back(new Feature(cloud_filtered));
 
@@ -929,7 +944,6 @@ void CFormBasedView::OnBnClickedGo()
 	seg.setDistanceThreshold(m_fDistanceThreshhold);
 
 	if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) != 0)
-	//if (m_fRadiusLimitsMin > 0 || m_fRadiusLimitsMax > 0)
 		seg.setRadiusLimits(m_fRadiusLimitsMin, m_fRadiusLimitsMax);
 
 	if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) != 0)
@@ -943,13 +957,9 @@ void CFormBasedView::OnBnClickedGo()
 		seg.setEpsAngle(m_fEpsilon);
 	}
 
-	//if ((GetDlgItem(IDC_CONE_ANGLE_LABEL)->GetStyle() & WS_DISABLED) != 0)
-	//{
-	//	seg.setMinMaxOpeningAngle(m_fConeAngleMin, m_fConeAngleMax);
-	//}
-
 	// Create the filtering object
 	pcl::ExtractIndices<pcl::PointXYZ> extract;
+
 
 	CString strModelName;
 	for (int x = 0; x < N_RANSAC_MODELS; x++)
@@ -960,6 +970,8 @@ void CFormBasedView::OnBnClickedGo()
 			break;
 		}
 	}
+
+	LARGE_INTEGER liStartExtract = liVolume;
 
 	int i = 0, nr_points = (int)cloud_filtered->points.size();
 	// While 30% of the original cloud is still there
@@ -983,23 +995,18 @@ void CFormBasedView::OnBnClickedGo()
 		extract.setNegative(false);
 		extract.filter(*cloud_p);
 
-#ifdef WALL_TOLERANCE
-		if (coefficients->values[1] <= WALL_TOLERANCE)		// look for vertical walls
-#endif // WALL_TOLERANCE
-#ifdef MIN_RADIUS
-			if (coefficients->values[3] < MAX_RADIUS && coefficients->values[3] > MIN_RADIUS)
-#endif // MIN_RADIUS
-			{
-				PrintToScreen(m_ctrlLog, _T("PointCloud representing the %s component: %d\n"), strModelName, cloud_p->width * cloud_p->height);
-				PrintToScreen(m_ctrlLog, _T("Model Coefficients:\nheader:\n"));
-				PrintModelCoefficients(m_ctrlLog, *coefficients);
-				feature_ptr p = new Feature(cloud_p);
-				pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
-				p->coefficients = c;
-				m_Layers.push_back(p);
-			}
+		LARGE_INTEGER liExtract;
+		::QueryPerformanceCounter(&liExtract);
 
-		//ShowCloud(cloud_p);
+		PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud representing the %s component: %d\n"),
+			ConvertToSeconds(liExtract.QuadPart - liStartExtract.QuadPart), strModelName, cloud_p->width * cloud_p->height);
+
+		PrintToScreen(m_ctrlLog, _T("Model Coefficients:\nheader:\n"));
+		PrintModelCoefficients(m_ctrlLog, *coefficients);
+		feature_ptr p = new Feature(cloud_p);
+		pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
+		p->coefficients = c;
+		m_Layers.push_back(p);
 
 		// Create the filtering object
 		extract.setNegative(true);
