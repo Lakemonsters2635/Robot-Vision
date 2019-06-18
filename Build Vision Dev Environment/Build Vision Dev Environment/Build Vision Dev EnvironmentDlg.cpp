@@ -20,6 +20,44 @@ GetEnv(const CString& strName)
 	return strValue;
 }
 
+bool
+AddToSystemPath(CString strDir)
+{
+	HKEY hKeyEnv;
+	LONG lRes = ::RegOpenKey(HKEY_LOCAL_MACHINE, _T("SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"), &hKeyEnv);
+	if (lRes != ERROR_SUCCESS)
+		return false;
+	DWORD dwType;
+	DWORD cData = 0;
+	lRes = ::RegQueryValueEx(hKeyEnv, _T("PATH"), NULL, &dwType, NULL, &cData);
+	if (lRes != ERROR_SUCCESS)
+		return false;
+
+	size_t cBuff = cData + strDir.GetLength() * sizeof(TCHAR);
+	BYTE* pszData = new BYTE[cBuff + 100];						// Add 100 bytes for possible semicolon, null and safety
+
+	lRes = ::RegQueryValueEx(hKeyEnv, _T("PATH"), NULL, &dwType, (LPBYTE)pszData, &cData);
+	if (lRes != ERROR_SUCCESS)
+		return false;
+
+	TCHAR* pszValue = (TCHAR*)pszData;
+	size_t cValue = _tcslen(pszValue);
+
+	if (pszValue[cValue - 1] != _T(';'))
+	{
+		pszData[cValue++] = _T(';');
+		pszData[cValue] = _T('\000');
+		cData += sizeof(TCHAR);
+	}
+
+	strDir += _T(';');
+	_tcscat(pszValue, (LPCTSTR)strDir);
+	pszData[cBuff] = 0;
+
+	lRes = ::RegSetValueEx(hKeyEnv, _T("SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"), NULL, dwType, pszData, (_tcslen(pszValue) + 1) * sizeof(TCHAR));
+	return true;
+}
+
 CString
 GetIncludeVersion(const CString& strDir)
 {
@@ -478,14 +516,24 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 
 	if (strPath.Find(strPCL_ROOT + _T("\\bin")) == -1 && strPath.Find(_T("%PCL_ROOT%\\bin")) == -1)
 	{
-		::AfxMessageBox(CString(_T("PATH should contain ")) + strPCL_ROOT + _T("\\bin or %PCL_ROOT%\\bin, but doesn't"), MB_ICONEXCLAMATION | MB_OK);
-		bError = TRUE;
+		::AfxMessageBox(CString(_T("PATH should contain ")) + strPCL_ROOT + _T("\\bin or %PCL_ROOT%\\bin, but doesn't."), MB_ICONEXCLAMATION | MB_OK);
+//		if (::AfxMessageBox(CString(_T("PATH should contain ")) + strPCL_ROOT + _T("\\bin or %PCL_ROOT%\\bin, but doesn't\n\nShall I add it?"), MB_ICONEXCLAMATION | MB_YESNO) == IDYES)
+		//{
+		//	bError = !AddToSystemPath(strPCL_ROOT + _T("\\bin"));
+		//}
+		//else
+			bError = TRUE;
 	}
 
 	if (strPath.Find(strOPENNI2_REDIST64) == -1)
 	{
-		::AfxMessageBox(CString(_T("PATH should contain ")) + strOPENNI2_REDIST64 + _T(", but doesn't"), MB_ICONEXCLAMATION | MB_OK);
-		bError = TRUE;
+		::AfxMessageBox(CString(_T("PATH should contain ")) + strOPENNI2_REDIST64 + _T(", but doesn't."), MB_ICONEXCLAMATION | MB_OK);
+//		if (::AfxMessageBox(CString(_T("PATH should contain ")) + strOPENNI2_REDIST64 + _T(", but doesn't\n\nShall I add it?"), MB_ICONEXCLAMATION | MB_YESNO) == IDYES)
+		//{
+		//	bError = !AddToSystemPath(strOPENNI2_REDIST64);
+		//}
+		//else
+			bError = TRUE;
 	}
 
 // Verify the directories
