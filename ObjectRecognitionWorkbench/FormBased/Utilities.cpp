@@ -219,8 +219,8 @@ pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, 
 // Struct for managing rotation of pointcloud view
 struct state {
 	state() : yaw(0.0), pitch(0.0), panx(0.0), pany(0.0), last_x(0.0), last_y(0.0),
-		ml(false), mm(false), offset_x(0.0f), offset_y(0.0f), mask(-1), info(false) {}
-	double yaw, pitch, panx, pany, last_x, last_y; bool ml; bool mm; float offset_x, offset_y;
+		ml(false), mm(false), offset_z(0.0f), mask(-1), info(false) {}
+	double yaw, pitch, panx, pany, last_x, last_y; bool ml; bool mm; float offset_z;
 	unsigned long long mask;
 	bool info;
 	int coef_sel;
@@ -247,8 +247,7 @@ static void register_glfw_callbacks(window& app, state& app_state)
 
 	app.on_mouse_scroll = [&](double xoffset, double yoffset)
 	{
-		app_state.offset_x += static_cast<float>(xoffset);
-		app_state.offset_y += static_cast<float>(yoffset);
+		app_state.offset_z += static_cast<float>(yoffset);
 	};
 
 	app.on_mouse_move = [&](double x, double y)
@@ -278,7 +277,7 @@ static void register_glfw_callbacks(window& app, state& app_state)
 		switch (key)
 		{
 		case ' ':
-			app_state.yaw = app_state.pitch = 0; app_state.offset_x = app_state.offset_y = 0.0;
+			app_state.yaw = app_state.pitch = 0; app_state.offset_z = 0; app_state.panx = app_state.pany = 0;
 			break;
 
 		case '/':
@@ -356,9 +355,22 @@ void PrintModelCoefficients(CEdit& Edit, pcl::ModelCoefficients& v)
 	PrintToScreen(Edit, _T("values[]\n"));
 	for (size_t i = 0; i < v.values.size(); ++i)
 	{
-		PrintToScreen(Edit, _T("  values[%d]   %f m    %f in\n"), i, v.values[i], v.values[i]*39.37);
+		PrintToScreen(Edit, _T("  values[%d]   %f m    %f in\n"), i, v.values[i], v.values[i]*INCHES_PER_METER);
 	}
 }
+
+double
+Angle(pcl::ModelCoefficients& v)
+{
+	return asin(v.values[0] / DistanceXZ(v));
+}
+
+double
+DistanceXZ(pcl::ModelCoefficients& v)
+{
+	return sqrt(v.values[0] * v.values[0] + v.values[2] * v.values[2]);
+}
+
 
 byte3 colorsb[N_COLORS] = {
 	{ 255, 255, 255 },
@@ -406,7 +418,7 @@ void draw_pointcloud(const std::vector <feature_ptr>& features)
 		glPushMatrix();
 		gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
 
-		glTranslatef(0, 0, +0.5f + app_state.offset_y*0.05f);
+		glTranslatef(0, 0, +0.5f + app_state.offset_z*0.05f);
 		glRotated(app_state.pitch, 1, 0, 0);
 		glRotated(app_state.yaw, 0, 1, 0);
 		glTranslatef(0, 0, -0.5f);

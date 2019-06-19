@@ -82,8 +82,8 @@ RANSACModels ransacModels[] = {
 	{ pcl::SACMODEL_LINE, _T("Line"), { 0 } },
 	{ pcl::SACMODEL_CIRCLE2D, _T("Circle2D"), 
 		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
-	{ pcl::SACMODEL_CIRCLE3D, _T("Circle3D"), 
-		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	//{ pcl::SACMODEL_CIRCLE3D, _T("Circle3D"), 
+	//	{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
 	{ pcl::SACMODEL_SPHERE, _T("Sphere"), 
 		{ IDC_RADIUS_LIMITS_LABEL, IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
 	{ pcl::SACMODEL_CYLINDER, _T("Cylinder"), 
@@ -165,8 +165,8 @@ CFormBasedView::CFormBasedView()
 noexcept
 : CFormView(IDD_FORMBASED_FORM)
 , m_fDepthScale(0.0)
-, m_nDepthMinValue(0)
-, m_nDepthMaxValue(1000)
+, m_fDepthMinValue(0.0)
+, m_fDepthMaxValue(10.00)
 , m_pPointCloudWindow(NULL)
 , m_pAppState(NULL)
 , m_nSACModel(0)
@@ -266,13 +266,13 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_DEPTH_MAX, m_ctrlDepthMax);
 	DDX_Control(pDX, IDC_DEPTH_MIN_VALUE, m_ctrlDepthMinValue);
 	DDX_Control(pDX, IDC_DEPTH_MAX_VALUE, m_ctrlDepthMaxValue);
-	DDX_Text(pDX, IDC_DEPTH_MIN_VALUE, m_nDepthMinValue);
-	DDX_Text(pDX, IDC_DEPTH_MAX_VALUE, m_nDepthMaxValue);
+	DDX_Text(pDX, IDC_DEPTH_MIN_VALUE, m_fDepthMinValue);
+	DDX_Text(pDX, IDC_DEPTH_MAX_VALUE, m_fDepthMaxValue);
 	//	DDX_Control(pDX, IDC_OGL_OBJECTS, m_PointCloudViewer);
 	//	DDX_Control(pDX, IDC_OGL_OBJECTS, test);
 	DDX_Control(pDX, IDC_SAC_MODEL, m_ctrlSACModel);
 	DDX_Text(pDX, IDC_MAX_ITERATIONS, m_nMaxIterations);
-	DDV_MinMaxFloat(pDX, m_nMaxIterations, 1, 1000);
+	DDV_MinMaxFloat(pDX, m_nMaxIterations, 1, 10000);
 	DDX_Text(pDX, IDC_DISTANCE_THRESHHOLD, m_fDistanceThreshhold);
 	DDV_MinMaxFloat(pDX, m_fDistanceThreshhold, 0.0, FLT_MAX);
 	DDX_Text(pDX, IDC_RADIUS_LIMITS_MIN, m_fRadiusLimitsMin);
@@ -334,11 +334,11 @@ void CFormBasedView::OnInitialUpdate()
 
 	pSlider = (CSliderCtrl*)GetDlgItem(IDC_DEPTH_MAX);
 	pSlider->SetRange(0, 1000);
-	pSlider->SetPos(m_nDepthMaxValue);
+	pSlider->SetPos((int) (m_fDepthMaxValue*100));
 
 	pSlider = (CSliderCtrl*)GetDlgItem(IDC_DEPTH_MIN);
 	pSlider->SetRange(0, 1000);
-	pSlider->SetPos(m_nDepthMinValue);
+	pSlider->SetPos((int)(m_fDepthMinValue * 100));
 
 	UpdateData(FALSE);
 
@@ -691,8 +691,8 @@ void CFormBasedView::DoIdleProcessing()
 
 		for (int x = 0; x < depthPoints; x++)
 		{
-			float dDepthInCm = depthData[x] * m_fDepthScale * 100;
-			if (dDepthInCm < m_nDepthMinValue || dDepthInCm > m_nDepthMaxValue)
+			float dDepthInM = depthData[x] * m_fDepthScale;
+			if (dDepthInM < m_fDepthMinValue || dDepthInM > m_fDepthMaxValue)
 				depthData[x] = 0;
 		}
 
@@ -739,11 +739,11 @@ void CFormBasedView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	switch (id)
 	{
 	case IDC_DEPTH_MIN:
-		m_nDepthMinValue = value;
+		m_fDepthMinValue = value/100.0;
 		break;
 
 	case IDC_DEPTH_MAX:
-		m_nDepthMaxValue = value;
+		m_fDepthMaxValue = value/100.0;
 		break;
 
 	default:
@@ -904,7 +904,7 @@ void CFormBasedView::OnBnClickedGo()
 	pcl::PassThrough<pcl::PointXYZ> Cloud_Filter; // Create the filtering object
 	Cloud_Filter.setInputCloud(pcl_points);           // Input generated cloud to filter
 	Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
-	Cloud_Filter.setFilterLimits(m_nDepthMinValue/100.0, m_nDepthMaxValue/100.0);      // Set accepted interval values
+	Cloud_Filter.setFilterLimits(m_fDepthMinValue, m_fDepthMaxValue);      // Set accepted interval values
 	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
 	pcl::toPCLPointCloud2(*newCloud, *cloud_blob);
 
@@ -914,20 +914,29 @@ void CFormBasedView::OnBnClickedGo()
 	PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud after depth and color filtering %d data points\n"),
 		ConvertToSeconds(liDepthAndColor.QuadPart - liStart.QuadPart), newCloud->width * newCloud->height);
 
-	// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
-	pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
-	sor.setInputCloud(cloud_blob);
-	sor.setLeafSize(m_fVoxelX, m_fVoxelY, m_fVoxelZ);
-	sor.filter(*cloud_filtered_blob);
-
-	// Convert to the templated PointCloud
-	pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
-
 	LARGE_INTEGER liVolume;
-	::QueryPerformanceCounter(&liVolume);
 
-	PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud after volume filtering: %d data points\n"), 
-		ConvertToSeconds(liVolume.QuadPart - liDepthAndColor.QuadPart), cloud_filtered->width * cloud_filtered->height);
+	if (m_bEnableVoxelFilter)
+	{
+		// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
+		pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+		sor.setInputCloud(cloud_blob);
+		sor.setLeafSize(m_fVoxelX, m_fVoxelY, m_fVoxelZ);
+		sor.filter(*cloud_filtered_blob);
+
+		// Convert to the templated PointCloud
+		pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
+
+		::QueryPerformanceCounter(&liVolume);
+
+		PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud after volume filtering: %d data points\n"), 
+			ConvertToSeconds(liVolume.QuadPart - liDepthAndColor.QuadPart), cloud_filtered->width * cloud_filtered->height);
+	}
+	else
+	{
+		pcl::fromPCLPointCloud2(*cloud_blob, *cloud_filtered);
+		liVolume = liDepthAndColor;
+	}
 
 	m_Layers.push_back(new Feature(cloud_filtered));
 
@@ -943,16 +952,16 @@ void CFormBasedView::OnBnClickedGo()
 	seg.setMaxIterations(m_nMaxIterations);
 	seg.setDistanceThreshold(m_fDistanceThreshhold);
 
-	if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) == 0)
 		seg.setRadiusLimits(m_fRadiusLimitsMin, m_fRadiusLimitsMax);
 
-	if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) == 0)
 	{
 		Eigen::Vector3f axis(m_fAxisX, m_fAxisY, m_fAxisZ);
 		seg.setAxis(axis);
 	}
 
-	if ((GetDlgItem(IDC_EPSILON_LABEL)->GetStyle() & WS_DISABLED) != 0)
+	if ((GetDlgItem(IDC_EPSILON_LABEL)->GetStyle() & WS_DISABLED) == 0)
 	{
 		seg.setEpsAngle(m_fEpsilon);
 	}
@@ -1008,6 +1017,38 @@ void CFormBasedView::OnBnClickedGo()
 		p->coefficients = c;
 		m_Layers.push_back(p);
 
+		switch (m_nSACModel)
+		{
+		case pcl::SACMODEL_PLANE:
+		case pcl::SACMODEL_PERPENDICULAR_PLANE:
+		case pcl::SACMODEL_NORMAL_PLANE:
+		case pcl::SACMODEL_PARALLEL_PLANE:
+		case pcl::SACMODEL_NORMAL_PARALLEL_PLANE:
+			PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"), 
+				Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, coefficients->values[3], coefficients->values[3]*INCHES_PER_METER);
+			break;
+
+		case pcl::SACMODEL_LINE:
+		case pcl::SACMODEL_CIRCLE2D:
+		case pcl::SACMODEL_CIRCLE3D:
+
+		case pcl::SACMODEL_SPHERE:
+			PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"), 
+				Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, DistanceXZ(*coefficients), DistanceXZ(*coefficients)*INCHES_PER_METER);
+			break;
+
+		case pcl::SACMODEL_CYLINDER:
+		//case pcl::SACMODEL_CONE:
+		//case pcl::SACMODEL_TORUS:
+		case pcl::SACMODEL_PARALLEL_LINE:
+		//case pcl::SACMODEL_PARALLEL_LINES:
+		case pcl::SACMODEL_NORMAL_SPHERE:
+		case pcl::SACMODEL_REGISTRATION:
+		case pcl::SACMODEL_REGISTRATION_2D:
+		case pcl::SACMODEL_STICK:
+			break;
+		}
+
 		// Create the filtering object
 		extract.setNegative(true);
 		extract.filter(*cloud_f);
@@ -1017,6 +1058,11 @@ void CFormBasedView::OnBnClickedGo()
 			break;
 	}
 
+	LARGE_INTEGER liStop;
+	::QueryPerformanceCounter(&liStop);
+	PrintToScreen(m_ctrlLog, _T("%f sec.  Total Execution Time\n"),
+		ConvertToSeconds(liStop.QuadPart - liStart.QuadPart));
+	   
 	draw_pointcloud(m_Layers);
 }
 

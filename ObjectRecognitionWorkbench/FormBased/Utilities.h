@@ -16,6 +16,9 @@
 
 //#include "example.hpp"
 
+#define INCHES_PER_METER	39.37
+#define	DEGREES_PER_RADIAN	(180.0/3.14159265358)
+
 class ColorFilter
 {
 public:
@@ -110,3 +113,5 @@ void PrintToScreen(CEdit& Edit, LPCTSTR pszFormat, ...);
 void PrintModelCoefficients(CEdit& Edit, pcl::ModelCoefficients& v);
 
 double ConvertToSeconds(LONGLONG time);
+double Angle(pcl::ModelCoefficients& v);
+double DistanceXZ(pcl::ModelCoefficients& v);

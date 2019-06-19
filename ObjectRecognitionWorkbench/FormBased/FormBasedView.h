@@ -161,8 +161,8 @@ protected:
 	friend void CFormBasedDoc::Serialize(CArchive& ar);
 
 	ColorFilter	m_colorFilter;
-	int m_nDepthMinValue;
-	int m_nDepthMaxValue;
+	float m_fDepthMinValue;
+	float m_fDepthMaxValue;
 	int m_bEnableVoxelFilter;
 	float m_fVoxelX;
 	float m_fVoxelY;
