@@ -55,7 +55,8 @@ BOOL CFormBasedDoc::OnNewDocument()
 // CFormBasedDoc serialization
 
 //#define	CURRENT_REV	1		// initial version
-#define		CURRENT_REV	2		// Added m_nMaxIterations
+//#define		CURRENT_REV	2	// Added m_nMaxIterations
+#define		CURRENT_REV	3		// Changed DepthMinValue and DepthMaxValue to float
 
 void CFormBasedDoc::Serialize(CArchive& ar)
 {
@@ -66,8 +67,8 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 	{
 		ar << CURRENT_REV;
 		ar.Write(&pView->m_colorFilter, sizeof(pView->m_colorFilter));
-		ar << pView->m_nDepthMinValue;
-		ar << pView->m_nDepthMaxValue;
+		ar << pView->m_fDepthMinValue;
+		ar << pView->m_fDepthMaxValue;
 		ar << pView->m_bEnableVoxelFilter;
 		ar << pView->m_fVoxelX;
 		ar << pView->m_fVoxelY;
@@ -90,9 +91,26 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 
 		ar >> nRev;
 
+		if (nRev > CURRENT_REV)
+		{
+			::AfxMessageBox(_T("File contains rev %d data.  This version only supports up to %d\n"), nRev, CURRENT_REV);
+			return;
+		}
+
 		ar.Read(&pView->m_colorFilter, sizeof(pView->m_colorFilter));
-		ar >> pView->m_nDepthMinValue;
-		ar >> pView->m_nDepthMaxValue;
+		if (nRev >= 3)
+		{
+			ar >> pView->m_fDepthMinValue;
+			ar >> pView->m_fDepthMaxValue;
+		}
+		else
+		{
+			long nDepthMinValue, nDepthMaxValue;
+			ar >> nDepthMinValue;
+			ar >> nDepthMaxValue;
+			pView->m_fDepthMinValue = nDepthMinValue / 100.0;
+			pView->m_fDepthMaxValue = nDepthMaxValue / 100.0;
+		}
 		ar >> pView->m_bEnableVoxelFilter;
 		ar >> pView->m_fVoxelX;
 		ar >> pView->m_fVoxelY;
