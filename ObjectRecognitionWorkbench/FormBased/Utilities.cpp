@@ -261,7 +261,8 @@ static void register_glfw_callbacks(window& app, state& app_state)
 		}
 		else if (app_state.mm)
 		{
-
+			app_state.panx += (x - app_state.last_x);
+			app_state.pany += (y - app_state.last_y);
 		}
 		
 		app_state.last_x = x;
@@ -418,10 +419,10 @@ void draw_pointcloud(const std::vector <feature_ptr>& features)
 		glPushMatrix();
 		gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
 
-		glTranslatef(0, 0, +0.5f + app_state.offset_z*0.05f);
+		glTranslatef(-0.5f, -0.5f, +0.5f + app_state.offset_z*0.05f);
 		glRotated(app_state.pitch, 1, 0, 0);
 		glRotated(app_state.yaw, 0, 1, 0);
-		glTranslatef(0, 0, -0.5f);
+		glTranslatef(+0.5f + app_state.panx*0.05f, +0.5f + app_state.pany*0.05f, -0.5f);
 
 		glPointSize(width / 640);
 		glEnable(GL_TEXTURE_2D);
