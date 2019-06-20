@@ -60,9 +60,9 @@ void CHistogram::OnPaint()
 
 	auto maxValue = m_Values[0];
 
-	for (int i = 1; i < sizeof(m_Values)/sizeof(m_Values[0]); i++)
+	for (auto& value : m_Values)
 	{
-		maxValue = max(maxValue, m_Values[i]);
+		maxValue = max(maxValue, value);
 	}
 
 	if (maxValue > 0)

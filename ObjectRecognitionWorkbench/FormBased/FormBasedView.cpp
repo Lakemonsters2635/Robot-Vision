@@ -59,16 +59,14 @@ struct RANSACControls
 };
 
 RANSACControls ransacControls[] = {
-	{ IDC_SAC_MODEL_LABEL, { IDC_SAC_MODEL, 0, 0 } },
-	{ IDC_MAX_ITERATIONS_LABEL, { IDC_MAX_ITERATIONS, 0, 0 } },
-	{ IDC_DISTANCE_THRESHHOLD_LABEL, { IDC_DISTANCE_THRESHHOLD, 0 } },
-	{ IDC_RADIUS_LIMITS_LABEL, { IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
-	{ IDC_AXIS_LABEL, { IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z } },
-	{ IDC_EPSILON_LABEL, { IDC_EPSILON, 0, 0 } },
 //	{ IDC_CONE_ANGLE_LABEL, { IDC_CONE_ANGLE_MIN, IDC_CONE_ANGLE_MAX, 0 } }
+	{ IDC_EPSILON_LABEL, { IDC_EPSILON, 0, 0 } },
+	{ IDC_AXIS_LABEL, { IDC_AXIS_X, IDC_AXIS_Y, IDC_AXIS_Z } },
+	{ IDC_RADIUS_LIMITS_LABEL, { IDC_RADIUS_LIMITS_MIN, IDC_RADIUS_LIMITS_MAX, 0 } },
+	{ IDC_DISTANCE_THRESHHOLD_LABEL, { IDC_DISTANCE_THRESHHOLD, 0 } },
+	{ IDC_MAX_ITERATIONS_LABEL, { IDC_MAX_ITERATIONS, 0, 0 } },
+	{ IDC_SAC_MODEL_LABEL, { IDC_SAC_MODEL, 0, 0 } },
 };
-
-#define	N_RANSAC_CONTROLS	(sizeof(ransacControls) / sizeof(ransacControls[0]))
 
 struct RANSACModels
 {
@@ -112,8 +110,6 @@ RANSACModels ransacModels[] = {
 //	{ pcl::SACMODEL_NORMAL_PARALLEL_PLANE, _T("Normal Parallel Plane"), { 0 } },
 //	{ pcl::SACMODEL_STICK, _T("Stick"), { 0 } },
 };
-
-#define	N_RANSAC_MODELS		(sizeof(ransacModels)/sizeof(ransacModels[0]))
 
 void
 AdjustAspect(int& nOGLWidth, int& nOGLHeight)
@@ -358,13 +354,16 @@ void CFormBasedView::OnInitialUpdate()
 		int nIdx = m_ctrlSACModel.AddString(_T(""));
 		m_ctrlSACModel.SetItemData(nIdx, 0);
 
-		for (int i = 0; i < N_RANSAC_MODELS; i++)
+		for (auto& ransacModel : ransacModels)
 		{
-			int nIdx = m_ctrlSACModel.AddString(ransacModels[i].model_text);
-			m_ctrlSACModel.SetItemData(nIdx, ransacModels[i].model);
+			int nIdx = m_ctrlSACModel.AddString(ransacModel.model_text);
+			m_ctrlSACModel.SetItemData(nIdx, ransacModel.model);
 			int testID;
-			for (int j = 0; (testID = ransacModels[i].enables[j]); j++)
+//			for (int j = 0; (testID = ransacModel.enables[j]); j++)
+			for (auto& testID : ransacModel.enables)
 			{
+				if (testID == 0)
+					break;
 				int k;
 				for (k = 0; k < m_RansacIds.GetSize(); k++)
 				{
@@ -606,23 +605,24 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	CRect rectLabel;
 	GetDlgItem(ransacControls[0].idcLabel)->GetClientRect(&rectLabel);
 
-	for (int i = N_RANSAC_CONTROLS - 1; i >= 0; i--)
+
+	for (auto& ransacControl : ransacControls)
 	{
 		xPos = ransacX;
 
-		GetDlgItem(ransacControls[i].idcLabel)->MoveWindow(xPos, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+		GetDlgItem(ransacControl.idcLabel)->MoveWindow(xPos, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
 		xPos += rectLabel.Width() + SMALL_SPACING;
 
 		int nControls = 0;
 		for (int j = 0; j < 3; j++)
 		{
-			if (ransacControls[i].idcValues[j])
+			if (ransacControl.idcValues[j])
 				nControls++;
 		}
 		for (int j = 0; j < nControls; j++)
 		{
-			GetDlgItem(ransacControls[i].idcValues[j])->MoveWindow(xPos, yPos, (valueWidth - (nControls - 1)*SMALL_SPACING) / nControls, valueHeight);
-			xPos += valueWidth / nControls + SMALL_SPACING/2;
+			GetDlgItem(ransacControl.idcValues[j])->MoveWindow(xPos, yPos, (valueWidth - (nControls - 1)*SMALL_SPACING) / nControls, valueHeight);
+			xPos += valueWidth / nControls + SMALL_SPACING / 2;
 		}
 		yPos -= valueHeight + SMALL_SPACING;
 	}
@@ -829,14 +829,16 @@ void CFormBasedView::OnSelChangeSacModel()
 
 	// Enable the ones we need
 
-	for (int i = 0; i < N_RANSAC_MODELS; i++)
+	for (auto& ransacModel : ransacModels)
 	{
-		if (m_nSACModel == ransacModels[i].model)
+		if (m_nSACModel == ransacModel.model)
 		{
 			int enableID;
 
-			for (int j = 0; (enableID = ransacModels[i].enables[j]); j++)
+			for (auto& enableID : ransacModel.enables)
 			{
+				if (enableID == 0)
+					break;
 				GetDlgItem(enableID)->EnableWindow(TRUE);
 			}
 			break;
@@ -971,11 +973,11 @@ void CFormBasedView::OnBnClickedGo()
 
 
 	CString strModelName;
-	for (int x = 0; x < N_RANSAC_MODELS; x++)
+	for (auto& ransacModel : ransacModels)
 	{
-		if (ransacModels[x].model == m_nSACModel)
+		if (ransacModel.model == m_nSACModel)
 		{
-			strModelName = ransacModels[x].model_text;
+			strModelName = ransacModel.model_text;
 			break;
 		}
 	}
