@@ -7,6 +7,7 @@
 #define IDD_FORMBASED_FORM              101
 #define IDR_MAINFRAME                   128
 #define IDR_ObjectRecognitionWorkbenchTYPE 130
+#define IDD_SAVE_PCD_FLAGS              312
 #define IDC_H                           1000
 #define IDC_OGL_CAMERA_FEED             1001
 #define IDC_OGL_DEPTH_FEED              1002
@@ -82,14 +83,20 @@
 #define IDC_MAX_ITERATIONS_LABEL        1072
 #define IDC_DISTANCE_THRESHHOLD2        1073
 #define IDC_MAX_ITERATIONS              1073
+#define IDC_ALIGNMENT_LABEL             1074
+#define IDC_SAVE_PCD                    1075
+#define IDC_ALIGNMENT                   1076
+#define IDC_CHECK2                      1078
+#define IDC_APPLY_DEPTH_FILTER          1079
+#define IDC_APPLY_COLOR_FILTER          1080
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        312
+#define _APS_NEXT_RESOURCE_VALUE        314
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1072
+#define _APS_NEXT_CONTROL_VALUE         1081
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

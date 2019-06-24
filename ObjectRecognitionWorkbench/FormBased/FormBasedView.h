@@ -178,8 +178,11 @@ protected:
 	float m_fEpsilon;
 	float m_fConeAngleMin;
 	float m_fConeAngleMax;
+	CString m_strAlignment;
+
 	BOOL m_bFreeze;
 public:
+	afx_msg void OnBnClickedSavePcd();
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

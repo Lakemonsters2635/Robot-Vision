@@ -5,6 +5,7 @@
 #undef	min
 #undef	max
 #include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -86,6 +87,7 @@ struct FrameHistogram
 
 
 using pcl_ptr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
+using pcl_color_ptr = pcl::PointCloud<pcl::PointXYZRGBA>::Ptr;
 
 struct Feature
 {
@@ -105,8 +107,9 @@ void FilterFrameByDepth(rs2::frameset frames, int nDepthMin, int nDepthMax);
 
 
 
-using pcl_ptr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, ColorFilter& colorFilter);
+pcl_color_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, ColorFilter& colorFilter, float depthMin, float depthMax);
+
 void draw_pointcloud(const std::vector <feature_ptr>& layers);
 
 void PrintToScreen(CEdit& Edit, LPCTSTR pszFormat, ...);
@@ -115,3 +118,6 @@ void PrintModelCoefficients(CEdit& Edit, pcl::ModelCoefficients& v);
 double ConvertToSeconds(LONGLONG time);
 double Angle(pcl::ModelCoefficients& v);
 double DistanceXZ(pcl::ModelCoefficients& v);
+
+rs2_stream AlignmentMode(CString strMode);
+CString AlignmentMode(int nMode);

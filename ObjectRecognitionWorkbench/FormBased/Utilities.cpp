@@ -216,6 +216,76 @@ pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, 
 	return cloud;
 }
 
+pcl_color_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, ColorFilter& colorFilter, float depthMin, float depthMax)
+{
+	std::tuple<uint8_t, uint8_t, uint8_t> RGB_Color;
+	pcl_color_ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+	auto sp = points.get_profile().as<rs2::video_stream_profile>();
+	cloud->width = sp.width();
+	cloud->height = sp.height();
+	cloud->is_dense = false;
+	cloud->points.resize(points.size());
+
+	auto Texture_Coord = points.get_texture_coordinates();
+	auto Vertex = points.get_vertices();
+	auto ptr = Vertex;
+
+	for (int i = 0; i < points.size(); i++)
+	{
+		auto &pt = cloud->points[i];
+
+		//===================================
+		// Mapping Depth Coordinates
+		// - Depth data stored as XYZ values
+		//===================================
+
+		pt.x = Vertex[i].x;
+		pt.y = Vertex[i].y;
+		pt.z = Vertex[i].z;
+
+		// Obtain color texture for specific point
+		RGB_Color = RGB_Texture(color, Texture_Coord[i]);
+
+		unsigned short R = std::get<0>(RGB_Color); // Reference tuple<2>
+		unsigned short G = std::get<1>(RGB_Color); // Reference tuple<1>
+		unsigned short B = std::get<2>(RGB_Color); // Reference tuple<0>
+
+		pt.r = R;
+		pt.g = G;
+		pt.b = B;
+
+		unsigned short H, S, V;
+
+		RgbToHsv(R, G, B, H, S, V);
+
+		if (Filter(H, colorFilter.leftH, colorFilter.rightH)
+			|| Filter(S, colorFilter.leftS, colorFilter.rightS)
+			|| Filter(V, colorFilter.leftV, colorFilter.rightV)
+			|| Filter(R, colorFilter.leftR, colorFilter.rightR)
+			|| Filter(G, colorFilter.leftG, colorFilter.rightG)
+			|| Filter(B, colorFilter.leftB, colorFilter.rightB))
+		{
+			cloud->points[i].z = -1000.0;		// Always filtered
+		}
+
+	}	//for (auto& p : cloud->points)
+
+	//========================================
+	// Filter PointCloud (PassThrough Method)
+	//========================================
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+	pcl::PassThrough<pcl::PointXYZRGBA> Cloud_Filter; // Create the filtering object
+	Cloud_Filter.setInputCloud(cloud);           // Input generated cloud to filter
+	Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
+	Cloud_Filter.setFilterLimits(depthMin, depthMax);      // Set accepted interval values
+	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
+
+	return newCloud;
+}
+
+
 // Struct for managing rotation of pointcloud view
 struct state {
 	state() : yaw(0.0), pitch(0.0), panx(0.0), pany(0.0), last_x(0.0), last_y(0.0),
@@ -487,4 +557,33 @@ double ConvertToSeconds(LONGLONG time)
 		::QueryPerformanceFrequency(&s_PerformanceFrequency);
 
 	return ((double)time) / s_PerformanceFrequency.QuadPart;
+}
+
+
+static struct AlignMode
+{
+	LPCTSTR	pszName;
+	rs2_stream		nValue;
+} AlignMode[2] = {
+	{ _T("Depth"), RS2_STREAM_DEPTH },
+	{ _T("Color"), RS2_STREAM_COLOR }
+};
+
+
+rs2_stream
+AlignmentMode(CString strMode)
+{
+	for (auto& x : AlignMode)
+		if (strMode == x.pszName)
+			return x.nValue;
+	return RS2_STREAM_ANY;
+}
+
+
+CString AlignmentMode(int nMode)
+{
+	for (auto& x : AlignMode)
+		if (nMode == x.nValue)
+			return x.pszName;
+	return _T("Error");
 }

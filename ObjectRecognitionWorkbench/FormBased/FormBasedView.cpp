@@ -152,13 +152,13 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_EN_CHANGE(IDC_CONE_ANGLE_MIN, &CFormBasedView::OnEnChange)
 	ON_EN_CHANGE(IDC_CONE_ANGLE_MAX, &CFormBasedView::OnEnChange)
 	ON_BN_CLICKED(IDC_GO, &CFormBasedView::OnBnClickedGo)
+	ON_BN_CLICKED(IDC_SAVE_PCD, &CFormBasedView::OnBnClickedSavePcd)
 END_MESSAGE_MAP()
 
 	// CFormBasedView construction/destruction
 
 	//	
-CFormBasedView::CFormBasedView()
-noexcept
+CFormBasedView::CFormBasedView() noexcept
 : CFormView(IDD_FORMBASED_FORM)
 , m_fDepthScale(0.0)
 , m_fDepthMinValue(0.0)
@@ -180,6 +180,7 @@ noexcept
 , m_fVoxelY(0)
 , m_fVoxelZ(0)
 , m_bEnableVoxelFilter(0)
+, m_strAlignment(_T("Color"))
 , m_bFreeze(TRUE)
 {
 }
@@ -295,6 +296,7 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDV_MinMaxFloat(pDX, m_fVoxelZ, 0.0, FLT_MAX);
 	DDX_Check(pDX, IDC_ENABLE_VOXEL_FILTER, m_bEnableVoxelFilter);
 	DDX_Check(pDX, IDC_FREEZE, m_bFreeze);
+	DDX_CBString(pDX, IDC_ALIGNMENT, m_strAlignment);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -344,8 +346,22 @@ void CFormBasedView::OnInitialUpdate()
 
 		rs2::device dev = profile.get_device();
 
+		std::vector<rs2::sensor> s = dev.query_sensors();
 		rs2::depth_sensor ds = dev.query_sensors().front().as<rs2::depth_sensor>();
 		m_fDepthScale = ds.get_depth_scale();
+
+		for (int i = 0; i < RS2_OPTION_COUNT; i++)
+		{
+			if (ds.supports(rs2_option(i)))
+			{
+				rs2::option_range range = ds.get_option_range((rs2_option(i)));
+				CString strDesc(ds.get_option_description((rs2_option(i))));
+				float fOption = ds.get_option(rs2_option(i));
+				//CString strValueDesc(ds.get_option_value_description((rs2_option(i)), fOption));
+
+				TRACE(_T("%2d %.1f (%.1f - %.1f x %.1f: %.1f) %s\n"), i, fOption, range.min, range.max, range.step, range.def, strDesc/*, strValueDesc*/);
+			}
+		}
 	}
 
 	if (m_RansacIds.GetSize() == 0)
@@ -638,6 +654,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	GetDlgItem(IDC_VOXEL_Z)->MoveWindow(xPos, yPos, (valueWidth - 2 * SMALL_SPACING) / 3, valueHeight);
 	xPos += valueWidth / 3 + SMALL_SPACING / 2;
 
+	yPos -= rectLabel.Height() + 5 * SMALL_SPACING;
+	GetDlgItem(IDC_ALIGNMENT_LABEL)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	GetDlgItem(IDC_ALIGNMENT)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
 	CRect rectLog;
 	rectLog.left = xPos + nBorder;
 	rectLog.right = rectClient.right - nBorder;
@@ -648,6 +668,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	CRect rectGo;
 	GetDlgItem(IDC_GO)->GetClientRect(&rectGo);
 	GetDlgItem(IDC_GO)->MoveWindow(CRect(CPoint(rectClient.right - nBorder - rectGo.Width(), rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
+
+	CRect rectSavePCD;
+	GetDlgItem(IDC_SAVE_PCD)->GetClientRect(&rectSavePCD);
+	GetDlgItem(IDC_SAVE_PCD)->MoveWindow(CRect(CPoint(rectClient.left+nBorder, rectClient.bottom - nBorder - rectSavePCD.Height()), rectSavePCD.Size()));
 }
 
 
@@ -878,8 +902,12 @@ void CFormBasedView::OnBnClickedGo()
 	// We want the points object to be persistent so we can display the last cloud when a frame drops
 	rs2::points points;
 
-	auto depth = m_rsFrames.get_depth_frame();
-	auto color = m_rsFrames.get_color_frame();
+	rs2::align align(AlignmentMode(m_strAlignment));
+
+	rs2::frameset frameset = align.process(m_rsFrames);
+
+	auto depth = frameset.get_depth_frame();
+	auto color = frameset.get_color_frame();
 
 	pc.map_to(color);
 
@@ -1069,3 +1097,41 @@ void CFormBasedView::OnBnClickedGo()
 }
 
 
+static ColorFilter noFilter;
+
+void CFormBasedView::OnBnClickedSavePcd()
+{
+	CFileDialog dlg(FALSE, _T("pcd"), NULL, OFN_OVERWRITEPROMPT, _T("Point Cloud Files (*.pcd)|*.pcd|All Files (*.*)|*.*||"));
+	dlg.AddCheckButton(IDC_APPLY_COLOR_FILTER, _T("Apply Color Filter"), FALSE);
+	dlg.AddCheckButton(IDC_APPLY_DEPTH_FILTER, _T("Apply Depth Filter"), FALSE);
+
+	if (dlg.DoModal() != IDOK)
+		return;
+
+	CT2A asciiPath(dlg.GetPathName());
+
+	// Declare pointcloud object, for calculating pointclouds and texture mappings
+	rs2::pointcloud pc;
+
+	// We want the points object to be persistent so we can display the last cloud when a frame drops
+	rs2::points points;
+
+	rs2::align align(AlignmentMode(m_strAlignment));
+
+	rs2::frameset frameset = align.process(m_rsFrames);
+
+	auto depth = frameset.get_depth_frame();
+	auto color = frameset.get_color_frame();
+
+	pc.map_to(color);
+
+	// Generate the pointcloud and texture mappings
+	points = pc.calculate(depth);
+
+	BOOL bApplyColorFilter, bApplyDepthFilter;
+	dlg.GetCheckButtonState(IDC_APPLY_COLOR_FILTER, bApplyColorFilter);
+	dlg.GetCheckButtonState(IDC_APPLY_DEPTH_FILTER, bApplyDepthFilter);
+
+	auto pcl_points = points_to_pcl(points, color, bApplyColorFilter?m_colorFilter:noFilter, bApplyDepthFilter? m_fDepthMinValue :0.0, bApplyDepthFilter? m_fDepthMaxValue :1000.0);
+	pcl::io::savePCDFile<pcl::PointXYZRGBA>(asciiPath.m_psz, *pcl_points, true);
+}
