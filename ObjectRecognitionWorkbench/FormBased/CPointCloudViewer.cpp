@@ -2,6 +2,9 @@
 #include "CPointCloudViewer.h"
 #include <vector>
 
+#undef max
+#undef min
+
 struct byte3
 {
 	unsigned char r, g, b;

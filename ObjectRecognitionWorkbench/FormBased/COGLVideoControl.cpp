@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "COGLVideoControl.h"
 
+#undef min
+#undef max
 
 COGLVideoControl::COGLVideoControl()
 {
