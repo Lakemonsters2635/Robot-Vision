@@ -842,11 +842,11 @@ void CFormBasedView::OnSelChangeSacModel()
 		GetDlgItem(m_RansacIds[i])->EnableWindow(FALSE);
 	}
 
-	if (m_nSACModel == 0) {
-		GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(FALSE);
-		GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(FALSE);
-		return;
-	}
+	//if (m_nSACModel == 0) {
+	//	GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(FALSE);
+	//	GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(FALSE);
+	//	return;
+	//}
 
 	GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(TRUE);
@@ -1104,6 +1104,7 @@ void CFormBasedView::OnBnClickedSavePcd()
 	CFileDialog dlg(FALSE, _T("pcd"), NULL, OFN_OVERWRITEPROMPT, _T("Point Cloud Files (*.pcd)|*.pcd|All Files (*.*)|*.*||"));
 	dlg.AddCheckButton(IDC_APPLY_COLOR_FILTER, _T("Apply Color Filter"), FALSE);
 	dlg.AddCheckButton(IDC_APPLY_DEPTH_FILTER, _T("Apply Depth Filter"), FALSE);
+	dlg.AddCheckButton(IDC_APPLY_VOXEL_FILTER, _T("Apply Voxel Filter"), FALSE);
 
 	if (dlg.DoModal() != IDOK)
 		return;
@@ -1128,10 +1129,21 @@ void CFormBasedView::OnBnClickedSavePcd()
 	// Generate the pointcloud and texture mappings
 	points = pc.calculate(depth);
 
-	BOOL bApplyColorFilter, bApplyDepthFilter;
+	BOOL bApplyColorFilter, bApplyDepthFilter, bApplyVoxelFilter;
 	dlg.GetCheckButtonState(IDC_APPLY_COLOR_FILTER, bApplyColorFilter);
 	dlg.GetCheckButtonState(IDC_APPLY_DEPTH_FILTER, bApplyDepthFilter);
+	dlg.GetCheckButtonState(IDC_APPLY_VOXEL_FILTER, bApplyVoxelFilter);
 
 	auto pcl_points = points_to_pcl(points, color, bApplyColorFilter?m_colorFilter:noFilter, bApplyDepthFilter? m_fDepthMinValue :0.0, bApplyDepthFilter? m_fDepthMaxValue :1000.0);
+	if (bApplyVoxelFilter)
+	{
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+		pcl::VoxelGrid<pcl::PointXYZRGBA> sor;
+		sor.setInputCloud(pcl_points);
+		sor.setLeafSize(m_fVoxelX, m_fVoxelY, m_fVoxelZ);
+		sor.filter(*cloud_filtered);
+		pcl_points = cloud_filtered;
+	}
 	pcl::io::savePCDFile<pcl::PointXYZRGBA>(asciiPath.m_psz, *pcl_points, true);
 }
