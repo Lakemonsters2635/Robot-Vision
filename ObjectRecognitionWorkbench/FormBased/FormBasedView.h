@@ -147,7 +147,7 @@ protected:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void OnDestroy();
-	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+//	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnSelChangeSacModel();
 	afx_msg void OnBnClickedEnableVoxelFilter();
 	afx_msg void OnEnChange();

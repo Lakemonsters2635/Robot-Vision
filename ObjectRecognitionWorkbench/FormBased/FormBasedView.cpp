@@ -139,7 +139,6 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_WM_SIZE()
 	ON_WM_HSCROLL()
 	ON_WM_DESTROY()
-	ON_WM_MOUSEMOVE()
 	ON_CBN_SELCHANGE(IDC_SAC_MODEL, OnSelChangeSacModel)
 	ON_BN_CLICKED(IDC_ENABLE_VOXEL_FILTER, &CFormBasedView::OnBnClickedEnableVoxelFilter)
 	ON_EN_CHANGE(IDC_VOXEL_X, &CFormBasedView::OnEnChange)
@@ -322,6 +321,8 @@ void CFormBasedView::OnInitialUpdate()
 	GetParentFrame()->RecalcLayout();
 	ResizeParentToFit();
 
+// Set the ranges for the color sliders
+
 	for (int y = 0; y < 2; y++)
 	{
 		for (int x = 0; x < 3; x++)
@@ -338,6 +339,8 @@ void CFormBasedView::OnInitialUpdate()
 		}
 	}
 
+	// Set the ranges for the depth sliders
+
 	pSlider = (CSliderCtrl*)GetDlgItem(IDC_DEPTH_MAX);
 	pSlider->SetRange(0, 1000);
 	pSlider->SetPos((int) (m_fDepthMaxValue*100));
@@ -348,11 +351,16 @@ void CFormBasedView::OnInitialUpdate()
 
 	UpdateData(FALSE);
 
+// If we don't have a camera started, yet.
+
 	if (m_fDepthScale == 0)
 	{
-		rs2::context                ctx;            // Create librealsense context for managing devices
+// Get a list of connected RS devices
 
+		rs2::context ctx;            // Create librealsense context for managing devices
 		auto devices = ctx.query_devices();
+
+// If none connected, abort
 
 		if (devices.size() == 0)
 		{
@@ -360,6 +368,8 @@ void CFormBasedView::OnInitialUpdate()
 			PostQuitMessage(0);
 			return;
 		}
+
+// Build a list of depth cameras of D435 series
 
 		std::vector<rs2::device> depthCameras;
 
@@ -374,12 +384,16 @@ void CFormBasedView::OnInitialUpdate()
 				depthCameras.push_back(dev);
 		}
 
+// DId we find any?
+
 		if (depthCameras.size() == 0)
 		{
 			::AfxMessageBox(_T("No RealSense Depth Cameras Found"), MB_ICONEXCLAMATION | MB_OK);
 			PostQuitMessage(0);
 			return;
 		}
+
+// If there's more than 1 depth camera connected, allow user to choose 1.  Default camera is #0
 
 		int nCamera = 0;
 
@@ -406,12 +420,16 @@ void CFormBasedView::OnInitialUpdate()
 			}
 		}
 
+// start the camera pipeline
+
 		rs2::config cfg;
 		cfg.enable_device(depthCameras[nCamera].get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
 
 		m_prsPipe = new rs2::pipeline(ctx);
 		
 		rs2::pipeline_profile profile = m_prsPipe->start();
+
+// For learning: in DEBUG mode, list the camera options
 
 		rs2::device dev = profile.get_device();
 
@@ -432,6 +450,8 @@ void CFormBasedView::OnInitialUpdate()
 			}
 		}
 	}
+
+// Populate the SAC Model combo box
 
 	if (m_RansacIds.GetSize() == 0)
 	{
@@ -462,9 +482,10 @@ void CFormBasedView::OnInitialUpdate()
 			}
 		}
 
-		//	m_ctrlSACModel.SelectString(-1, _T(""));
 		UpdateData(FALSE);
 	}
+
+// Set the current selected in the SAC model combo box
 
 	for (int i = 0; i < m_ctrlSACModel.GetCount(); i++)
 	{
@@ -475,6 +496,8 @@ void CFormBasedView::OnInitialUpdate()
 		}
 	}
 
+// Populate the Edge Detector CheckCombo box.  Also, verify that the enum constants are in the same order as the strings
+
 	if (m_ctrlEdgeDetector.GetCount() == 0)
 	{
 		assert(EF_NANBOUNDARY == 0); m_ctrlEdgeDetector.AddString(_T("Nan Boundary"));
@@ -484,14 +507,15 @@ void CFormBasedView::OnInitialUpdate()
 		assert(EF_RGB == 4); m_ctrlEdgeDetector.AddString(_T("RGB"));
 	}
 
-	OnSelChangeSacModel();		// Update the UI
+
+// Update the UI
+
+	OnSelChangeSacModel();		
 	OnEnChange();
 	OnBnClickedEnableVoxelFilter();
 
 	GetDocument()->SetModifiedFlag(FALSE);
 
-	// Setup the OpenGL Window's timer to render
-//	m_PointCloudViewer.m_unpTimer = m_PointCloudViewer.SetTimer(1, 1, 0);
 }
 
 
@@ -545,6 +569,8 @@ CFormBasedDoc* CFormBasedView::GetDocument() const // non-debug version is inlin
 void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 {
 	CFormView::OnSize(nType, cx, cy);
+
+// This code lays out the controls when the dialog box is created or resized.
 
 	CRect rectClient;
 	GetClientRect(&rectClient);
@@ -756,6 +782,7 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	GetDlgItem(IDC_SAVE_PCD)->MoveWindow(CRect(CPoint(rectClient.left+nBorder, rectClient.bottom - nBorder - rectSavePCD.Height()), rectSavePCD.Size()));
 }
 
+// When we have a new frame, convert it to bitmap for display
 
 void CFormBasedView::NewFrame(rs2::frameset& frames)
 {
@@ -777,6 +804,8 @@ void CFormBasedView::NewFrame(rs2::frameset& frames)
 
 }
 
+// Whenever nothing is going on, we grab frames and lightly process them
+
 void CFormBasedView::DoIdleProcessing()
 {
 	static int nSkip = 30;
@@ -788,7 +817,7 @@ void CFormBasedView::DoIdleProcessing()
 
 		auto depth = m_rsFrames.get_depth_frame();
 
-		// Filter the depth
+// Filter the depth.  This filtering is only applied to the heat map for display.  Actual filtering of the point cloud is handled in main processing code.
 
 		auto depthWidth = depth.get_width();
 		auto depthHeight = depth.get_height();
@@ -802,15 +831,21 @@ void CFormBasedView::DoIdleProcessing()
 				depthData[x] = 0;
 		}
 
+// Compute the histograms
+
 		FrameHistogram Hist;
 		rs2::frameset data = m_rsFrames.apply_filter(m_rsPrinter).apply_filter(m_rsColorMap);
 		NewFrame(data);
 		ComputeHistogram(m_rsFrames, Hist);
 
+// This macro sets the data into a histogram control, invalidates it (to cause it to redraw), computes the average and SD and sets the text to them
+
 #define INIT_HIST(c, b)			\
 	m_ctrl##c.SetData(Hist.c);			\
 	m_ctrl##c.Invalidate(TRUE);		\
 	m_ctrl##c##Average.SetWindowText(AverageAndSD(Hist.c, b))
+
+// Do this once for each color channel
 
 		INIT_HIST(H, 1);
 		INIT_HIST(S, 0);
@@ -818,8 +853,6 @@ void CFormBasedView::DoIdleProcessing()
 		INIT_HIST(R, 0);
 		INIT_HIST(G, 0);
 		INIT_HIST(B, 0);
-
-		//UpdateData(FALSE);
 
 		// Declare pointcloud object, for calculating pointclouds and texture mappings
 		rs2::pointcloud pc;
@@ -831,9 +864,9 @@ void CFormBasedView::DoIdleProcessing()
 
 		pc.map_to(color);
 	}
-	//m_PointCloudViewer.OnTimer(1);
 }
 
+// Handle the sliders for the colors and depth
 
 void CFormBasedView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
@@ -895,16 +928,6 @@ void CFormBasedView::OnDestroy()
 }
 
 
-void CFormBasedView::OnMouseMove(UINT nFlags, CPoint point)
-{
-	if (m_rectPointCloudViewer.PtInRect(point)) {
-		//TRACE(_T("Move: %d, %d    %d, %d\n"), point.x, point.y, point.x - m_rectPointCloudViewer.left, point.y - m_rectPointCloudViewer.top);
-		//m_PointCloudViewer.OnMouseMove(nFlags, point);
-	}
-
-	CFormView::OnMouseMove(nFlags, point);
-}
-
 void CFormBasedView::OnSelChangeSacModel()
 {
 	UpdateData(TRUE);
@@ -923,12 +946,6 @@ void CFormBasedView::OnSelChangeSacModel()
 	{
 		GetDlgItem(m_RansacIds[i])->EnableWindow(FALSE);
 	}
-
-	//if (m_nSACModel == 0) {
-	//	GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(FALSE);
-	//	GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(FALSE);
-	//	return;
-	//}
 
 	GetDlgItem(IDC_DISTANCE_THRESHHOLD_LABEL)->EnableWindow(TRUE);
 	GetDlgItem(IDC_DISTANCE_THRESHHOLD)->EnableWindow(TRUE);
@@ -998,18 +1015,33 @@ void CFormBasedView::OnBnClickedGo()
 
 	pcl_ptr pcl_points;
 
+// If the edge detector is enabled
+
 	if (m_dwEdgeDetector != 0)
 	{
+// Convert RS to PCL, maintaining color and depth for the edge finder
+
 		auto color_points = points_to_pcl(points, color, noFilter, 0.0, 1000.0);
+
+// Find the edges and create a new cloud of them
+
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr edges(new pcl::PointCloud<pcl::PointXYZRGBA>);
 		FindEdges(color_points, m_dwEdgeDetector, 0.02, 50, edges);
+
+// Now apply the color filter to the edges
+
 		colorFilter(edges, m_colorFilter);
+
+// Copy the filtered edges into an XYZ (no color) cloud
+
 		pcl_ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl_points = cloud;
 		copyPointCloud(*edges, *pcl_points);
 	}
 	else
 	{
+// With no edge filter, just convert RS to PCL while applying the color filter
+
 		pcl_points = points_to_pcl(points, color, m_colorFilter);
 	}
 
@@ -1024,7 +1056,7 @@ void CFormBasedView::OnBnClickedGo()
 	::QueryPerformanceCounter(&liStart);
 
 	//========================================
-	// Filter PointCloud (PassThrough Method)
+	// Filter PointCloud by Depth
 	//========================================
 	pcl::PointCloud<pcl::PointXYZ>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZ>);
 
@@ -1042,6 +1074,8 @@ void CFormBasedView::OnBnClickedGo()
 		ConvertToSeconds(liDepthAndColor.QuadPart - liStart.QuadPart), newCloud->width * newCloud->height);
 
 	LARGE_INTEGER liVolume;
+
+// If the Voxel FIlter is enabled, downsample the point cloud
 
 	if (m_bEnableVoxelFilter)
 	{
@@ -1066,6 +1100,8 @@ void CFormBasedView::OnBnClickedGo()
 	}
 
 	m_Layers.push_back(new Feature(cloud_filtered));
+
+// Now run RANSAC using the SAC model and parameters
 
 	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
 	pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
@@ -1096,6 +1132,7 @@ void CFormBasedView::OnBnClickedGo()
 	// Create the filtering object
 	pcl::ExtractIndices<pcl::PointXYZ> extract;
 
+// SAC Model Name for printing in log file
 
 	CString strModelName;
 	for (auto& ransacModel : ransacModels)
@@ -1143,6 +1180,8 @@ void CFormBasedView::OnBnClickedGo()
 		pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
 		p->coefficients = c;
 		m_Layers.push_back(p);
+
+// Depending on the SAC Model, print the offset angle and distance
 
 		switch (m_nSACModel)
 		{
@@ -1206,10 +1245,10 @@ void CFormBasedView::OnBnClickedSavePcd()
 
 	CT2A asciiPath(dlg.GetPathName());
 
-	// Declare pointcloud object, for calculating pointclouds and texture mappings
+// Declare pointcloud object, for calculating pointclouds and texture mappings
 	rs2::pointcloud pc;
 
-	// We want the points object to be persistent so we can display the last cloud when a frame drops
+// We want the points object to be persistent so we can display the last cloud when a frame drops
 	rs2::points points;
 
 	rs2::align align(AlignmentMode(m_strAlignment));
@@ -1221,15 +1260,22 @@ void CFormBasedView::OnBnClickedSavePcd()
 
 	pc.map_to(color);
 
-	// Generate the pointcloud and texture mappings
+// Generate the pointcloud and texture mappings
 	points = pc.calculate(depth);
+
+// Get the checkbox values from the File Save dialog box
 
 	BOOL bApplyColorFilter, bApplyDepthFilter, bApplyVoxelFilter;
 	dlg.GetCheckButtonState(IDC_APPLY_COLOR_FILTER, bApplyColorFilter);
 	dlg.GetCheckButtonState(IDC_APPLY_DEPTH_FILTER, bApplyDepthFilter);
 	dlg.GetCheckButtonState(IDC_APPLY_VOXEL_FILTER, bApplyVoxelFilter);
 
+// Convert RS to PCL while applying the color filter and depth filter.
+
 	auto pcl_points = points_to_pcl(points, color, bApplyColorFilter?m_colorFilter:noFilter, bApplyDepthFilter? m_fDepthMinValue :0.0, bApplyDepthFilter? m_fDepthMaxValue :1000.0);
+
+// Apply the Voxel Filter if needed
+
 	if (bApplyVoxelFilter)
 	{
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGBA>);
