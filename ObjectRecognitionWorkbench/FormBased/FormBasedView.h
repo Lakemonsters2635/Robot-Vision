@@ -71,7 +71,8 @@ protected:
 	rs2::rates_printer m_rsPrinter;
 
 	// Declare RealSense pipeline, encapsulating the actual device and sensors
-	rs2::pipeline m_rsPipe;
+	rs2::pipeline *m_prsPipe;
+
 	float m_fDepthScale;
 
 	// Frameset returned from pipeline

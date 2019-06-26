@@ -195,11 +195,11 @@ void COGLVideoControl::NewBitmap(GLint internal_format, GLsizei image_width, GLs
 	err = glGetError();
 	glTexCoord2f(0, 0); glVertex2f(0, 0);
 	err = glGetError();
-	glTexCoord2f(0, 1); glVertex2f(0, height);
+	glTexCoord2f(0, 1); glVertex2f(0, 1.0f*height);
 	err = glGetError();
-	glTexCoord2f(1, 1); glVertex2f(width, height);
+	glTexCoord2f(1, 1); glVertex2f(1.0f*width, 1.0f*height);
 	err = glGetError();
-	glTexCoord2f(1, 0); glVertex2f(width, 0);
+	glTexCoord2f(1, 0); glVertex2f(1.0f*width, 0);
 	err = glGetError();
 	glEnd();
 	err = glGetError();

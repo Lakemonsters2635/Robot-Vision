@@ -12,6 +12,7 @@
 #include "FormBasedDoc.h"
 #include "FormBasedView.h"
 #include "Utilities.h"
+#include "CChooseCamera.h"
 
 
 
@@ -186,6 +187,7 @@ noexcept
 , m_strAlignment(_T("Color"))
 , m_bFreeze(TRUE)
 , m_dwEdgeDetector(0) 
+, m_prsPipe(NULL)
 {
 }
 
@@ -348,28 +350,68 @@ void CFormBasedView::OnInitialUpdate()
 
 	if (m_fDepthScale == 0)
 	{
-		//rs2::context                ctx;            // Create librealsense context for managing devices
+		rs2::context                ctx;            // Create librealsense context for managing devices
 
-		//auto devices = ctx.query_devices();
+		auto devices = ctx.query_devices();
 
-		//if (devices.size() == 0)
-		//{
-		//	::AfxMessageBox(_T("No RealSense Cameras Found"), MB_ICONEXCLAMATION | MB_OK);
-		//	PostQuitMessage(0);
-		//	return;
-		//}
+		if (devices.size() == 0)
+		{
+			::AfxMessageBox(_T("No RealSense Cameras Found"), MB_ICONEXCLAMATION | MB_OK);
+			PostQuitMessage(0);
+			return;
+		}
 
-		//for (auto&& dev : ctx.query_devices())
-		//{
-		//	TRACE(_T("%s: %s\n"), CString(dev.get_info(RS2_CAMERA_INFO_NAME)), CString(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)));
-		//	//rs2::pipeline pipe(ctx);
-		//	//rs2::config cfg;
-		//	//cfg.enable_device(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
-		//	//pipe.start(cfg);
-		//	//pipelines.emplace_back(pipe);
-		//}
+		std::vector<rs2::device> depthCameras;
+
+		for (auto&& dev : devices)
+		{
+			CString strCameraName(dev.get_info(RS2_CAMERA_INFO_NAME));
+			CString strCameraSerialNumber(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+			
+			TRACE(_T("%s: %s\n"), strCameraName, strCameraSerialNumber);
+
+			if (strCameraName.Find(_T("D435")) != -1)
+				depthCameras.push_back(dev);
+		}
+
+		if (depthCameras.size() == 0)
+		{
+			::AfxMessageBox(_T("No RealSense Depth Cameras Found"), MB_ICONEXCLAMATION | MB_OK);
+			PostQuitMessage(0);
+			return;
+		}
+
+		int nCamera = 0;
+
+		if (depthCameras.size() > 1)
+		{
+			CChooseCamera dlg(depthCameras);
+
+			for (;;)
+			{
+				if (dlg.DoModal() != IDOK)
+				{
+					PostQuitMessage(0);
+					return;
+				}
+				if (dlg.m_nSelectedCamera == -1)
+				{
+					::AfxMessageBox(_T("Please select a camera"), MB_ICONEXCLAMATION | MB_OK);
+				}
+				else
+				{
+					nCamera = dlg.m_nSelectedCamera;
+					break;
+				}
+			}
+		}
+
+		rs2::config cfg;
+		cfg.enable_device(depthCameras[nCamera].get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+
+		m_prsPipe = new rs2::pipeline(ctx);
 		
-		rs2::pipeline_profile profile = m_rsPipe.start();
+		rs2::pipeline_profile profile = m_prsPipe->start();
 
 		rs2::device dev = profile.get_device();
 
@@ -739,7 +781,7 @@ void CFormBasedView::DoIdleProcessing()
 {
 	static int nSkip = 30;
 
-	if (m_fDepthScale != 0 && m_rsPipe.poll_for_frames(&m_rsFrames))
+	if (m_fDepthScale != 0 && m_prsPipe->poll_for_frames(&m_rsFrames))
 	{
 		if (m_ctrlFreeze.GetCheck())
 			return;
@@ -849,7 +891,7 @@ void CFormBasedView::OnDestroy()
 {
 	CFormView::OnDestroy();
 
-	m_rsPipe.stop();
+	m_prsPipe->stop();
 }
 
 

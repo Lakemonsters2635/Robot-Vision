@@ -8,6 +8,7 @@
 #define IDR_MAINFRAME                   128
 #define IDR_ObjectRecognitionWorkbenchTYPE 130
 #define IDD_SAVE_PCD_FLAGS              312
+#define IDD_CHOOSE_CAMERA               314
 #define IDC_H                           1000
 #define IDC_OGL_CAMERA_FEED             1001
 #define IDC_OGL_DEPTH_FEED              1002
@@ -86,7 +87,6 @@
 #define IDC_ALIGNMENT_LABEL             1074
 #define IDC_SAVE_PCD                    1075
 #define IDC_ALIGNMENT                   1076
-#define IDC_ALIGNMENT_LABEL2            1077
 #define IDC_EDGE_DETECTOR_LABEL         1077
 #define IDC_CHECK2                      1078
 #define IDC_APPLY_VOXEL_FILTER          1078
@@ -94,14 +94,16 @@
 #define IDC_APPLY_COLOR_FILTER          1080
 #define IDC_CHECK1                      1081
 #define IDC_EDGE_DETECTOR               1081
+#define IDC_COMBO1                      1084
+#define IDC_CAMERAS                     1084
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        314
+#define _APS_NEXT_RESOURCE_VALUE        316
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1084
+#define _APS_NEXT_CONTROL_VALUE         1085
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif
