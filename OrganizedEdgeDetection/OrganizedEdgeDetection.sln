@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.705
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OrganizedEdgeDetection", "OrganizedEdgeDetection\OrganizedEdgeDetection.vcxproj", "{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Debug|x64.ActiveCfg = Debug|x64
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Debug|x64.Build.0 = Debug|x64
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Debug|x86.ActiveCfg = Debug|Win32
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Debug|x86.Build.0 = Debug|Win32
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Release|x64.ActiveCfg = Release|x64
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Release|x64.Build.0 = Release|x64
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Release|x86.ActiveCfg = Release|Win32
+		{3147EE03-EF88-4350-AD8C-7D5F7805C9DC}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {67A0FFF1-0733-4E4D-B4E9-2D2550CFD4B6}
+	EndGlobalSection
+EndGlobal
