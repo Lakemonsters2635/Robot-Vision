@@ -20,6 +20,9 @@
 #define INCHES_PER_METER	39.37
 #define	DEGREES_PER_RADIAN	(180.0/3.14159265358)
 
+enum EdgeFeatures { EF_NANBOUNDARY, EF_OCCLUDING, EF_OCCLUDED, EF_HIGHCURVATURE, EF_RGB };
+
+
 class ColorFilter
 {
 public:
@@ -121,3 +124,6 @@ double DistanceXZ(pcl::ModelCoefficients& v);
 
 rs2_stream AlignmentMode(CString strMode);
 CString AlignmentMode(int nMode);
+
+void FindEdges(const pcl_color_ptr& input, DWORD dwEdgeTypes, float th_dd, int max_search, pcl_color_ptr& edges);
+void colorFilter(pcl_color_ptr cloud, ColorFilter& colorFilter);

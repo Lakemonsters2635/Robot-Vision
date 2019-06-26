@@ -4,6 +4,10 @@
 
 #include "example.hpp"
 
+#include <pcl/console/time.h>
+#include <pcl/features/organized_edge_detection.h>
+#include <pcl/features/integral_image_normal.h>
+
 void
 RgbToHsv(unsigned short R, unsigned short G, unsigned short B, unsigned short& H, unsigned short& S, unsigned short& V)
 {
@@ -283,6 +287,29 @@ pcl_color_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& c
 	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
 
 	return newCloud;
+}
+
+
+void colorFilter(pcl_color_ptr cloud, ColorFilter& colorFilter)
+{
+	for (size_t i = 0; i < cloud->size(); ++i)
+	{
+		auto &pt = cloud->points[i];
+		
+		unsigned short H, S, V;
+
+		RgbToHsv(pt.r, pt.g, pt.b, H, S, V);
+
+		if (Filter(H, colorFilter.leftH, colorFilter.rightH)
+			|| Filter(S, colorFilter.leftS, colorFilter.rightS)
+			|| Filter(V, colorFilter.leftV, colorFilter.rightV)
+			|| Filter(pt.r, colorFilter.leftR, colorFilter.rightR)
+			|| Filter(pt.g, colorFilter.leftG, colorFilter.rightG)
+			|| Filter(pt.b, colorFilter.leftB, colorFilter.rightB))
+		{
+			pt.z = -1000.0;		// Always filtered
+		}
+	}
 }
 
 
@@ -586,4 +613,73 @@ CString AlignmentMode(int nMode)
 		if (nMode == x.nValue)
 			return x.pszName;
 	return _T("Error");
+}
+
+void FindEdges(const pcl_color_ptr& input, DWORD dwEdgeTypes, float th_dd, int max_search, pcl_color_ptr& edges)
+{
+
+	pcl::PointCloud<pcl::Normal>::Ptr normal(new pcl::PointCloud<pcl::Normal>);
+	pcl::IntegralImageNormalEstimation<pcl::PointXYZRGBA, pcl::Normal> ne;
+	ne.setNormalEstimationMethod(ne.COVARIANCE_MATRIX);
+	ne.setNormalSmoothingSize(10.0f);
+	ne.setBorderPolicy(ne.BORDER_POLICY_MIRROR);
+	ne.setInputCloud(input);
+	ne.compute(*normal);
+
+	//pcl::TicToc tt;
+	//tt.tic();
+
+	//OrganizedEdgeBase<PointXYZRGBA, Label> oed;
+	//OrganizedEdgeFromRGB<PointXYZRGBA, Label> oed;
+	//OrganizedEdgeFromNormals<PointXYZRGBA, Normal, Label> oed;
+	pcl::OrganizedEdgeFromRGBNormals<pcl::PointXYZRGBA, pcl::Normal, pcl::Label> oed;
+	oed.setInputNormals(normal);
+	oed.setInputCloud(input);
+	oed.setDepthDisconThreshold(th_dd);
+	oed.setMaxSearchNeighbors(max_search);
+	oed.setEdgeType(oed.EDGELABEL_NAN_BOUNDARY | oed.EDGELABEL_OCCLUDING | oed.EDGELABEL_OCCLUDED | oed.EDGELABEL_HIGH_CURVATURE | oed.EDGELABEL_RGB_CANNY);
+	pcl::PointCloud<pcl::Label> labels;
+	std::vector<pcl::PointIndices> label_indices;
+	oed.compute(labels, label_indices);
+	//print_info("Detecting all edges... [done, "); print_value("%g", tt.toc()); print_info(" ms]\n");
+
+	//// Make gray point clouds
+	//for (auto &point : input->points)
+	//{
+	//	uint8_t gray = uint8_t((point.r + point.g + point.b) / 3);
+	//	point.r = point.g = point.b = gray;
+	//}
+
+	//// Display edges in PCLVisualizer
+	//viewer.setSize(640, 480);
+	//viewer.addCoordinateSystem(0.2f, "global");
+	//viewer.addPointCloud(cloud, "original point cloud");
+	//viewer.registerKeyboardCallback(&keyboard_callback);
+
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr occluding_edges(new pcl::PointCloud<pcl::PointXYZRGBA>),
+		occluded_edges(new pcl::PointCloud<pcl::PointXYZRGBA>),
+		nan_boundary_edges(new pcl::PointCloud<pcl::PointXYZRGBA>),
+		high_curvature_edges(new pcl::PointCloud<pcl::PointXYZRGBA>),
+		rgb_edges(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+	pcl::copyPointCloud(*input, label_indices[0].indices, *nan_boundary_edges);
+	pcl::copyPointCloud(*input, label_indices[1].indices, *occluding_edges);
+	pcl::copyPointCloud(*input, label_indices[2].indices, *occluded_edges);
+	pcl::copyPointCloud(*input, label_indices[3].indices, *high_curvature_edges);
+	pcl::copyPointCloud(*input, label_indices[4].indices, *rgb_edges);
+
+	if (dwEdgeTypes & (1U << EF_NANBOUNDARY))
+		*edges += *nan_boundary_edges;
+
+	if (dwEdgeTypes & (1U << EF_OCCLUDING))
+		*edges += *occluding_edges;
+
+	if (dwEdgeTypes & (1U << EF_OCCLUDED))
+		*edges += *occluded_edges;
+
+	if (dwEdgeTypes & (1U << EF_HIGHCURVATURE))
+		*edges += *high_curvature_edges;
+
+	if (dwEdgeTypes & (1U << EF_RGB))
+		*edges += *rgb_edges;
 }

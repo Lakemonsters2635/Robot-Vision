@@ -54,6 +54,9 @@
     <ClInclude Include="CRealSenseVideo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CheckComboBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FormBased.cpp">
@@ -84,6 +87,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CRealSenseVideo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CheckComboBox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

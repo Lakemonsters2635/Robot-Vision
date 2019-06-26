@@ -191,6 +191,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CheckComboBox.h" />
     <ClInclude Include="CHistogram.h" />
     <ClInclude Include="COGLVideoControl.h" />
     <ClInclude Include="CPointCloudViewer.h" />
@@ -206,6 +207,7 @@
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CheckComboBox.cpp" />
     <ClCompile Include="CHistogram.cpp" />
     <ClCompile Include="COGLVideoControl.cpp" />
     <ClCompile Include="CPointCloudViewer.cpp" />
