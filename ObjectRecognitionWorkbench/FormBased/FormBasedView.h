@@ -7,7 +7,7 @@
 
 #include "CRealSenseVideo.h"
 #include "CHistogram.h"
-//#include "CPointCloudViewer.h"
+#include "CheckComboBox.h"
 
 #include "utilities.h"
 
@@ -179,10 +179,13 @@ protected:
 	float m_fConeAngleMin;
 	float m_fConeAngleMax;
 	CString m_strAlignment;
+	DWORD m_dwEdgeDetector;
+
 
 	BOOL m_bFreeze;
 public:
 	afx_msg void OnBnClickedSavePcd();
+	CCheckComboBox m_ctrlEdgeDetector;
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

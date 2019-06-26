@@ -57,7 +57,8 @@ BOOL CFormBasedDoc::OnNewDocument()
 //#define	CURRENT_REV	1		// initial version
 //#define	CURRENT_REV	2		// Added m_nMaxIterations
 //#define	CURRENT_REV	3		// Changed DepthMinValue and DepthMaxValue to float
-#define		CURRENT_REV	4		// Added alignment mode
+//#define	CURRENT_REV	4		// Added alignment mode
+#define		CURRENT_REV	5		// Added edge detector
 
 void CFormBasedDoc::Serialize(CArchive& ar)
 {
@@ -86,6 +87,7 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 		ar << pView->m_fConeAngleMin;
 		ar << pView->m_fConeAngleMax;
 		ar << AlignmentMode(pView->m_strAlignment);
+		ar << pView->m_dwEdgeDetector;
 	}
 	else
 	{
@@ -136,6 +138,9 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 			ar >> x;
 			pView->m_strAlignment = AlignmentMode(x);
 		}
+
+		if (nRev >= 5)
+			ar >> pView->m_dwEdgeDetector;
 
 		pView->UpdateData(FALSE);
 	}

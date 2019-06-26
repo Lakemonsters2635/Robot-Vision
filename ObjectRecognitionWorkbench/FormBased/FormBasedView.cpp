@@ -111,6 +111,8 @@ RANSACModels ransacModels[] = {
 //	{ pcl::SACMODEL_STICK, _T("Stick"), { 0 } },
 };
 
+static ColorFilter noFilter;
+
 void
 AdjustAspect(int& nOGLWidth, int& nOGLHeight)
 {
@@ -158,7 +160,8 @@ END_MESSAGE_MAP()
 	// CFormBasedView construction/destruction
 
 	//	
-CFormBasedView::CFormBasedView() noexcept
+CFormBasedView::CFormBasedView()
+noexcept
 : CFormView(IDD_FORMBASED_FORM)
 , m_fDepthScale(0.0)
 , m_fDepthMinValue(0.0)
@@ -182,6 +185,7 @@ CFormBasedView::CFormBasedView() noexcept
 , m_bEnableVoxelFilter(0)
 , m_strAlignment(_T("Color"))
 , m_bFreeze(TRUE)
+, m_dwEdgeDetector(0) 
 {
 }
 
@@ -297,6 +301,8 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_ENABLE_VOXEL_FILTER, m_bEnableVoxelFilter);
 	DDX_Check(pDX, IDC_FREEZE, m_bFreeze);
 	DDX_CBString(pDX, IDC_ALIGNMENT, m_strAlignment);
+	m_ctrlEdgeDetector.DDX(pDX, m_dwEdgeDetector);
+	DDX_Control(pDX, IDC_EDGE_DETECTOR, m_ctrlEdgeDetector);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -342,12 +348,33 @@ void CFormBasedView::OnInitialUpdate()
 
 	if (m_fDepthScale == 0)
 	{
+		//rs2::context                ctx;            // Create librealsense context for managing devices
+
+		//auto devices = ctx.query_devices();
+
+		//if (devices.size() == 0)
+		//{
+		//	::AfxMessageBox(_T("No RealSense Cameras Found"), MB_ICONEXCLAMATION | MB_OK);
+		//	PostQuitMessage(0);
+		//	return;
+		//}
+
+		//for (auto&& dev : ctx.query_devices())
+		//{
+		//	TRACE(_T("%s: %s\n"), CString(dev.get_info(RS2_CAMERA_INFO_NAME)), CString(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)));
+		//	//rs2::pipeline pipe(ctx);
+		//	//rs2::config cfg;
+		//	//cfg.enable_device(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+		//	//pipe.start(cfg);
+		//	//pipelines.emplace_back(pipe);
+		//}
+		
 		rs2::pipeline_profile profile = m_rsPipe.start();
 
 		rs2::device dev = profile.get_device();
 
-		std::vector<rs2::sensor> s = dev.query_sensors();
-		rs2::depth_sensor ds = dev.query_sensors().front().as<rs2::depth_sensor>();
+		auto s = dev.query_sensors();
+		rs2::depth_sensor ds = s.front().as<rs2::depth_sensor>();
 		m_fDepthScale = ds.get_depth_scale();
 
 		for (int i = 0; i < RS2_OPTION_COUNT; i++)
@@ -404,6 +431,15 @@ void CFormBasedView::OnInitialUpdate()
 			m_ctrlSACModel.SetCurSel(i);
 			break;
 		}
+	}
+
+	if (m_ctrlEdgeDetector.GetCount() == 0)
+	{
+		assert(EF_NANBOUNDARY == 0); m_ctrlEdgeDetector.AddString(_T("Nan Boundary"));
+		assert(EF_OCCLUDING == 1); m_ctrlEdgeDetector.AddString(_T("Occluding"));
+		assert(EF_OCCLUDED == 2); m_ctrlEdgeDetector.AddString(_T("Occluded"));
+		assert(EF_HIGHCURVATURE == 3); m_ctrlEdgeDetector.AddString(_T("High Curvature"));
+		assert(EF_RGB == 4); m_ctrlEdgeDetector.AddString(_T("RGB"));
 	}
 
 	OnSelChangeSacModel();		// Update the UI
@@ -657,6 +693,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	yPos -= rectLabel.Height() + 5 * SMALL_SPACING;
 	GetDlgItem(IDC_ALIGNMENT_LABEL)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
 	GetDlgItem(IDC_ALIGNMENT)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
+	yPos -= rectLabel.Height() + 5 * SMALL_SPACING;
+	GetDlgItem(IDC_EDGE_DETECTOR_LABEL)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	GetDlgItem(IDC_EDGE_DETECTOR)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
 
 	CRect rectLog;
 	rectLog.left = xPos + nBorder;
@@ -914,7 +954,22 @@ void CFormBasedView::OnBnClickedGo()
 	// Generate the pointcloud and texture mappings
 	points = pc.calculate(depth);
 
-	auto pcl_points = points_to_pcl(points, color, m_colorFilter);
+	pcl_ptr pcl_points;
+
+	if (m_dwEdgeDetector != 0)
+	{
+		auto color_points = points_to_pcl(points, color, noFilter, 0.0, 1000.0);
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr edges(new pcl::PointCloud<pcl::PointXYZRGBA>);
+		FindEdges(color_points, m_dwEdgeDetector, 0.02, 50, edges);
+		colorFilter(edges, m_colorFilter);
+		pcl_ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl_points = cloud;
+		copyPointCloud(*edges, *pcl_points);
+	}
+	else
+	{
+		pcl_points = points_to_pcl(points, color, m_colorFilter);
+	}
 
 	pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
@@ -1096,8 +1151,6 @@ void CFormBasedView::OnBnClickedGo()
 	draw_pointcloud(m_Layers);
 }
 
-
-static ColorFilter noFilter;
 
 void CFormBasedView::OnBnClickedSavePcd()
 {
