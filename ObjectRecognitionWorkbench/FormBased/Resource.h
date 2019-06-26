@@ -94,8 +94,9 @@
 #define IDC_APPLY_COLOR_FILTER          1080
 #define IDC_CHECK1                      1081
 #define IDC_EDGE_DETECTOR               1081
-#define IDC_COMBO1                      1084
 #define IDC_CAMERAS                     1084
+#define IDC_BUTTON1                     1085
+#define IDC_CLEAR_LOG                   1085
 
 // Next default values for new objects
 // 
@@ -103,7 +104,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        316
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1085
+#define _APS_NEXT_CONTROL_VALUE         1086
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

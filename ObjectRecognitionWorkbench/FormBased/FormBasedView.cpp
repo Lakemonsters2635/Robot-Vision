@@ -14,6 +14,7 @@
 #include "Utilities.h"
 #include "CChooseCamera.h"
 
+#include <librealsense2/rs_advanced_mode.hpp>
 
 
 //#ifdef _DEBUG
@@ -155,6 +156,7 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_EN_CHANGE(IDC_CONE_ANGLE_MAX, &CFormBasedView::OnEnChange)
 	ON_BN_CLICKED(IDC_GO, &CFormBasedView::OnBnClickedGo)
 	ON_BN_CLICKED(IDC_SAVE_PCD, &CFormBasedView::OnBnClickedSavePcd)
+	ON_BN_CLICKED(IDC_CLEAR_LOG, &CFormBasedView::OnBnClickedClearLog)
 END_MESSAGE_MAP()
 
 	// CFormBasedView construction/destruction
@@ -777,6 +779,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	GetDlgItem(IDC_GO)->GetClientRect(&rectGo);
 	GetDlgItem(IDC_GO)->MoveWindow(CRect(CPoint(rectClient.right - nBorder - rectGo.Width(), rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
 
+	CRect rectClearLog;
+	GetDlgItem(IDC_CLEAR_LOG)->GetClientRect(&rectClearLog);
+	GetDlgItem(IDC_CLEAR_LOG)->MoveWindow(CRect(CPoint(rectLog.left, rectClient.bottom - nBorder - rectClearLog.Height()), rectClearLog.Size()));
+
 	CRect rectSavePCD;
 	GetDlgItem(IDC_SAVE_PCD)->GetClientRect(&rectSavePCD);
 	GetDlgItem(IDC_SAVE_PCD)->MoveWindow(CRect(CPoint(rectClient.left+nBorder, rectClient.bottom - nBorder - rectSavePCD.Height()), rectSavePCD.Size()));
@@ -1182,6 +1188,7 @@ void CFormBasedView::OnBnClickedGo()
 		m_Layers.push_back(p);
 
 // Depending on the SAC Model, print the offset angle and distance
+		float fDistance = 0;
 
 		switch (m_nSACModel)
 		{
@@ -1195,8 +1202,20 @@ void CFormBasedView::OnBnClickedGo()
 			break;
 
 		case pcl::SACMODEL_LINE:
-		case pcl::SACMODEL_CIRCLE2D:
 		case pcl::SACMODEL_CIRCLE3D:
+			break;
+
+// The circle only returns the x&y coordinates of the circle center, plus its radius.  Let's try computing the distance
+// as the average Z value of all the points in the circle cloud.
+
+		case pcl::SACMODEL_CIRCLE2D:
+			for (auto& p : *cloud_p)
+			{
+				fDistance += p.z;
+			}
+			fDistance /= cloud_p->size();
+			PrintToScreen(m_ctrlLog, _T("Average distance to circle: %.2f (%.1f in)\n"), fDistance, fDistance*INCHES_PER_METER);
+			break;
 
 		case pcl::SACMODEL_SPHERE:
 			PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"), 
@@ -1287,4 +1306,10 @@ void CFormBasedView::OnBnClickedSavePcd()
 		pcl_points = cloud_filtered;
 	}
 	pcl::io::savePCDFile<pcl::PointXYZRGBA>(asciiPath.m_psz, *pcl_points, true);
+}
+
+
+void CFormBasedView::OnBnClickedClearLog()
+{
+	m_ctrlLog.SetWindowText(_T(""));
 }

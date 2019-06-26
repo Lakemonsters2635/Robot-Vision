@@ -187,6 +187,7 @@ protected:
 public:
 	afx_msg void OnBnClickedSavePcd();
 	CCheckComboBox m_ctrlEdgeDetector;
+	afx_msg void OnBnClickedClearLog();
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp
