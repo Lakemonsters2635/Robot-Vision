@@ -13,6 +13,8 @@
 #include "FormBasedView.h"
 #include "Utilities.h"
 #include "CChooseCamera.h"
+#include "CGaussianSettings.h"
+#include "CCannySettings.h"
 
 #include <librealsense2/rs_advanced_mode.hpp>
 
@@ -157,13 +159,17 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_BN_CLICKED(IDC_GO, &CFormBasedView::OnBnClickedGo)
 	ON_BN_CLICKED(IDC_SAVE_PCD, &CFormBasedView::OnBnClickedSavePcd)
 	ON_BN_CLICKED(IDC_CLEAR_LOG, &CFormBasedView::OnBnClickedClearLog)
+	ON_BN_CLICKED(IDC_GAUSSIAN_SETTINGS, &CFormBasedView::OnBnClickedGaussianSettings)
+	ON_BN_CLICKED(IDC_CANNY_SETTINGS, &CFormBasedView::OnBnClickedCannySettings)
+	ON_BN_CLICKED(IDC_GAUSSIAN_ENABLE, &CFormBasedView::OnBnClickedGaussianEnable)
+	ON_BN_CLICKED(IDC_CANNY_ENABLE, &CFormBasedView::OnBnClickedCannyEnable)
 END_MESSAGE_MAP()
 
 	// CFormBasedView construction/destruction
 
 	//	
 CFormBasedView::CFormBasedView()
-noexcept
+	noexcept
 : CFormView(IDD_FORMBASED_FORM)
 , m_fDepthScale(0.0)
 , m_fDepthMinValue(0.0)
@@ -189,6 +195,16 @@ noexcept
 , m_bFreeze(TRUE)
 , m_dwEdgeDetector(0) 
 , m_prsPipe(NULL)
+, m_bGaussianEnable(FALSE)
+, m_sizeGaussian(CSize(9, 9))
+, m_dSigmaXGaussian(2.0)
+, m_dSigmaYGaussian(0.0)
+, m_nBorderTypeGaussian(4)
+, m_bCannyEnable(FALSE)
+, m_dThreshhold1Canny(100)
+, m_dThreshhold2Canny(100)
+, m_nApertureCanny(3)
+, m_bL2GradientCanny(false)
 {
 }
 
@@ -306,6 +322,8 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_CBString(pDX, IDC_ALIGNMENT, m_strAlignment);
 	m_ctrlEdgeDetector.DDX(pDX, m_dwEdgeDetector);
 	DDX_Control(pDX, IDC_EDGE_DETECTOR, m_ctrlEdgeDetector);
+	DDX_Check(pDX, IDC_GAUSSIAN_ENABLE, m_bGaussianEnable);
+	DDX_Check(pDX, IDC_CANNY_ENABLE, m_bCannyEnable);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -515,6 +533,8 @@ void CFormBasedView::OnInitialUpdate()
 	OnSelChangeSacModel();		
 	OnEnChange();
 	OnBnClickedEnableVoxelFilter();
+	OnBnClickedGaussianEnable();
+	OnBnClickedCannyEnable();
 
 	GetDocument()->SetModifiedFlag(FALSE);
 
@@ -767,6 +787,15 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	yPos -= rectLabel.Height() + 5 * SMALL_SPACING;
 	GetDlgItem(IDC_EDGE_DETECTOR_LABEL)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
 	GetDlgItem(IDC_EDGE_DETECTOR)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
+	yPos -= rectLabel.Height() + 10 * SMALL_SPACING;
+	GetDlgItem(IDC_CANNY_ENABLE)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	GetDlgItem(IDC_CANNY_SETTINGS)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
+	yPos -= rectLabel.Height() + 5 * SMALL_SPACING;
+	GetDlgItem(IDC_GAUSSIAN_ENABLE)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	GetDlgItem(IDC_GAUSSIAN_SETTINGS)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
 
 	CRect rectLog;
 	rectLog.left = xPos + nBorder;
@@ -1312,4 +1341,57 @@ void CFormBasedView::OnBnClickedSavePcd()
 void CFormBasedView::OnBnClickedClearLog()
 {
 	m_ctrlLog.SetWindowText(_T(""));
+}
+
+
+void CFormBasedView::OnBnClickedGaussianSettings()
+{
+	CGaussianSettings dlg(m_sizeGaussian, m_dSigmaXGaussian, m_dSigmaYGaussian, m_nBorderTypeGaussian);
+
+	if (dlg.DoModal() == IDOK)
+	{
+		m_sizeGaussian = CSize(dlg.m_nSizeX, dlg.m_nSizeY);
+		m_dSigmaXGaussian = dlg.m_dSigmaX;
+		m_dSigmaYGaussian = dlg.m_dSigmaY;
+		m_nBorderTypeGaussian = dlg.m_nBorderType;
+
+		GetDocument()->SetModifiedFlag(TRUE);
+	}
+}
+
+
+void CFormBasedView::OnBnClickedCannySettings()
+{
+	CCannySettings dlg(m_dThreshhold1Canny, m_dThreshhold2Canny, m_nApertureCanny, m_bCannyEnable);
+
+	if (dlg.DoModal() == IDOK)
+	{
+		m_dThreshhold1Canny = dlg.m_dThreshhold1;
+		m_dThreshhold2Canny = dlg.m_dThreshhold2;
+		m_nApertureCanny = dlg.m_nAperture;
+		m_bL2GradientCanny = dlg.m_bL2Gradient;
+
+		GetDocument()->SetModifiedFlag(TRUE);
+	}
+
+}
+
+
+void CFormBasedView::OnBnClickedGaussianEnable()
+{
+	UpdateData(TRUE);
+
+	GetDlgItem(IDC_GAUSSIAN_SETTINGS)->EnableWindow(m_bGaussianEnable);
+
+	GetDocument()->SetModifiedFlag(TRUE);
+}
+
+
+void CFormBasedView::OnBnClickedCannyEnable()
+{
+	UpdateData(TRUE);
+
+	GetDlgItem(IDC_CANNY_SETTINGS)->EnableWindow(m_bCannyEnable);
+
+	GetDocument()->SetModifiedFlag(TRUE);
 }

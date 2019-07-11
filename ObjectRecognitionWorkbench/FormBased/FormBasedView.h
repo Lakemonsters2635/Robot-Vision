@@ -181,6 +181,16 @@ protected:
 	float m_fConeAngleMax;
 	CString m_strAlignment;
 	DWORD m_dwEdgeDetector;
+	BOOL m_bGaussianEnable;
+	CSize m_sizeGaussian;
+	double m_dSigmaXGaussian;
+	double m_dSigmaYGaussian;
+	int m_nBorderTypeGaussian;
+	BOOL m_bCannyEnable;
+	double m_dThreshhold1Canny;
+	double m_dThreshhold2Canny;
+	int m_nApertureCanny;
+	bool m_bL2GradientCanny;
 
 
 	BOOL m_bFreeze;
@@ -188,6 +198,10 @@ public:
 	afx_msg void OnBnClickedSavePcd();
 	CCheckComboBox m_ctrlEdgeDetector;
 	afx_msg void OnBnClickedClearLog();
+	afx_msg void OnBnClickedGaussianSettings();
+	afx_msg void OnBnClickedCannySettings();
+	afx_msg void OnBnClickedGaussianEnable();
+	afx_msg void OnBnClickedCannyEnable();
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

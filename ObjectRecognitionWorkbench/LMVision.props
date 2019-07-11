@@ -6,11 +6,11 @@
     <PCLDebug Condition="'$(Configuration)'=='Debug'">_debug</PCLDebug>
     <PCLDebug Condition="'$(Configuration)'!='Debug'">_release</PCLDebug>
     <VTKDebug Condition="'$(Configuration)'=='Debug'">-gd</VTKDebug>
-    <VTKDebug Condition="'$(Configuration)'!='Debug'">
-    </VTKDebug>
+    <VTKDebug Condition="'$(Configuration)'!='Debug'"></VTKDebug>
     <BoostDebug Condition="'$(Configuration)'=='Debug'">-gd</BoostDebug>
-    <BoostDebug Condition="'$(Configuration)'!='Debug'">
-    </BoostDebug>
+    <BoostDebug Condition="'$(Configuration)'!='Debug'"></BoostDebug>
+    <OpenCVDebug Condition="'$(Configuration)'=='Debug'">d</OpenCVDebug>
+    <OpenCVDebug Condition="'$(Configuration)'!='Debug'"></OpenCVDebug>
     <PCL_VER>pcl-1.9</PCL_VER>
     <VTK_VER>vtk-8.1</VTK_VER>
     <BOOST_VER>boost-1_68</BOOST_VER>
@@ -26,6 +26,7 @@
       $(PCL_ROOT)\3rdParty\VTK\include\$(VTK_VER);
       $(PCL_ROOT)\3rdParty\Boost\include\$(BOOST_VER);
       $(librealsenseSDK)\third-party\glfw-imgui\include;
+      $(OPENCV_ROOT)\include;
 	  %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -36,6 +37,7 @@
         $(PCL_ROOT)\3rdParty\Boost\lib;
         $(PCL_ROOT)\3rdParty\VTK\lib;
 		$(LZ4_ROOT)\$(PlatformShortName)\$(Configuration);
+        $(OPENCV_ROOT)\x64\vc15\lib;
 		%(AdditionalLibraryDirectories)
 	  </AdditionalLibraryDirectories>
       <AdditionalDependencies>
@@ -223,9 +225,55 @@
         vtkViewsCore-8.1$(VTKDebug).lib;
         vtkViewsInfovis-8.1$(VTKDebug).lib;
         vtkzlib-8.1$(VTKDebug).lib;
+        opencv_aruco411$(OPENCVDebug).lib;
+        opencv_bgsegm411$(OPENCVDebug).lib;
+        opencv_bioinspired411$(OPENCVDebug).lib;
+        opencv_calib3d411$(OPENCVDebug).lib;
+        opencv_ccalib411$(OPENCVDebug).lib;
+        opencv_core411$(OPENCVDebug).lib;
+        opencv_datasets411$(OPENCVDebug).lib;
+        opencv_dnn411$(OPENCVDebug).lib;
+        opencv_dnn_objdetect411$(OPENCVDebug).lib;
+        opencv_dpm411$(OPENCVDebug).lib;
+        opencv_face411$(OPENCVDebug).lib;
+        opencv_features2d411$(OPENCVDebug).lib;
+        opencv_flann411$(OPENCVDebug).lib;
+        opencv_fuzzy411$(OPENCVDebug).lib;
+        opencv_gapi411$(OPENCVDebug).lib;
+        opencv_hfs411$(OPENCVDebug).lib;
+        opencv_highgui411$(OPENCVDebug).lib;
+        opencv_imgcodecs411$(OPENCVDebug).lib;
+        opencv_imgproc411$(OPENCVDebug).lib;
+        opencv_img_hash411$(OPENCVDebug).lib;
+        opencv_line_descriptor411$(OPENCVDebug).lib;
+        opencv_ml411$(OPENCVDebug).lib;
+        opencv_objdetect411$(OPENCVDebug).lib;
+        opencv_optflow411$(OPENCVDebug).lib;
+        opencv_phase_unwrapping411$(OPENCVDebug).lib;
+        opencv_photo411$(OPENCVDebug).lib;
+        opencv_plot411$(OPENCVDebug).lib;
+        opencv_quality411$(OPENCVDebug).lib;
+        opencv_reg411$(OPENCVDebug).lib;
+        opencv_rgbd411$(OPENCVDebug).lib;
+        opencv_saliency411$(OPENCVDebug).lib;
+        opencv_shape411$(OPENCVDebug).lib;
+        opencv_stereo411$(OPENCVDebug).lib;
+        opencv_stitching411$(OPENCVDebug).lib;
+        opencv_structured_light411$(OPENCVDebug).lib;
+        opencv_superres411$(OPENCVDebug).lib;
+        opencv_surface_matching411$(OPENCVDebug).lib;
+        opencv_text411$(OPENCVDebug).lib;
+        opencv_tracking411$(OPENCVDebug).lib;
+        opencv_video411$(OPENCVDebug).lib;
+        opencv_videoio411$(OPENCVDebug).lib;
+        opencv_videostab411$(OPENCVDebug).lib;
+        opencv_xfeatures2d411$(OPENCVDebug).lib;
+        opencv_ximgproc411$(OPENCVDebug).lib;
+        opencv_xobjdetect411$(OPENCVDebug).lib;
+        opencv_xphoto411$(OPENCVDebug).lib;
 		%(AdditionalDependencies)
 	  </AdditionalDependencies>
-      <ShowProgress>NotSet</ShowProgress>
+      <ShowProgress>LinkVerbose</ShowProgress>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y "$(librealsenseSDK)\bin\$(PlatformShortName)\realsense2.dll" "$(OutDir)"</Command>

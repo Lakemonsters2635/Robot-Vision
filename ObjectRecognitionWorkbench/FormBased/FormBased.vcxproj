@@ -101,6 +101,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <ShowProgress>NotSet</ShowProgress>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -178,6 +179,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <ShowProgress>NotSet</ShowProgress>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -191,7 +193,9 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CCannySettings.h" />
     <ClInclude Include="CChooseCamera.h" />
+    <ClInclude Include="CGaussianSettings.h" />
     <ClInclude Include="CheckComboBox.h" />
     <ClInclude Include="CHistogram.h" />
     <ClInclude Include="COGLVideoControl.h" />
@@ -208,7 +212,9 @@
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CCannySettings.cpp" />
     <ClCompile Include="CChooseCamera.cpp" />
+    <ClCompile Include="CGaussianSettings.cpp" />
     <ClCompile Include="CheckComboBox.cpp" />
     <ClCompile Include="CHistogram.cpp" />
     <ClCompile Include="COGLVideoControl.cpp" />

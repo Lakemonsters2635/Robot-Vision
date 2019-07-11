@@ -60,6 +60,12 @@
     <ClInclude Include="CChooseCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CGaussianSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CCannySettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FormBased.cpp">
@@ -96,6 +102,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CChooseCamera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CGaussianSettings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CCannySettings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

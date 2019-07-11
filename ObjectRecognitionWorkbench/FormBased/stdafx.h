@@ -57,3 +57,5 @@
 
 #include <WinUser.h>
 #include <afxcontrolbars.h>
+#include <afxcontrolbars.h>
+#include <afxcontrolbars.h>

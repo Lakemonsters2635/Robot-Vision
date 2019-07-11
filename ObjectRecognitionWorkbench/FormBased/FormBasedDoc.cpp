@@ -58,7 +58,8 @@ BOOL CFormBasedDoc::OnNewDocument()
 //#define	CURRENT_REV	2		// Added m_nMaxIterations
 //#define	CURRENT_REV	3		// Changed DepthMinValue and DepthMaxValue to float
 //#define	CURRENT_REV	4		// Added alignment mode
-#define		CURRENT_REV	5		// Added edge detector
+//#define	CURRENT_REV	5		// Added edge detector
+#define		CURRENT_REV	6		// Added Gaussian Blur and Canny Edge Detection
 
 void CFormBasedDoc::Serialize(CArchive& ar)
 {
@@ -88,6 +89,16 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 		ar << pView->m_fConeAngleMax;
 		ar << AlignmentMode(pView->m_strAlignment);
 		ar << pView->m_dwEdgeDetector;
+		ar << pView->m_bGaussianEnable;
+		ar << pView->m_sizeGaussian;
+		ar << pView->m_dSigmaXGaussian;
+		ar << pView->m_dSigmaYGaussian;
+		ar << pView->m_nBorderTypeGaussian;
+		ar << pView->m_bCannyEnable;
+		ar << pView->m_dThreshhold1Canny;
+		ar << pView->m_dThreshhold2Canny;
+		ar << pView->m_nApertureCanny;
+		ar << pView->m_bL2GradientCanny;
 	}
 	else
 	{
@@ -122,6 +133,8 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 		ar >> pView->m_nSACModel;
 		if (nRev >= 2)
 			ar >> pView->m_nMaxIterations;
+		else
+			pView->m_nMaxIterations = 1000;
 		ar >> pView->m_fDistanceThreshhold;
 		ar >> pView->m_fRadiusLimitsMin;
 		ar >> pView->m_fRadiusLimitsMax;
@@ -138,10 +151,43 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 			ar >> x;
 			pView->m_strAlignment = AlignmentMode(x);
 		}
+		else
+		{
+			pView->m_strAlignment = _T("Depth");
+		}
 
 		if (nRev >= 5)
 			ar >> pView->m_dwEdgeDetector;
+		else
+			pView->m_dwEdgeDetector = 0;
 
+		if (nRev >= 6)
+		{
+			ar >> pView->m_bGaussianEnable;
+			ar >> pView->m_sizeGaussian;
+			ar >> pView->m_dSigmaXGaussian;
+			ar >> pView->m_dSigmaYGaussian;
+			ar >> pView->m_nBorderTypeGaussian;
+			ar >> pView->m_bCannyEnable;
+			ar >> pView->m_dThreshhold1Canny;
+			ar >> pView->m_dThreshhold2Canny;
+			ar >> pView->m_nApertureCanny;
+			ar >> pView->m_bL2GradientCanny;
+
+		}
+		else
+		{
+			pView->m_bGaussianEnable = false;
+			pView->m_sizeGaussian = CSize(9, 9);
+			pView->m_dSigmaXGaussian = 2.0;
+			pView->m_dSigmaYGaussian = 0.0;
+			pView->m_nBorderTypeGaussian = 4;
+			pView->m_bCannyEnable = false;
+			pView->m_dThreshhold1Canny = 100;
+			pView->m_dThreshhold2Canny = 100;
+			pView->m_nApertureCanny = 3;
+			pView->m_bL2GradientCanny = false;
+		}
 		pView->UpdateData(FALSE);
 	}
 }

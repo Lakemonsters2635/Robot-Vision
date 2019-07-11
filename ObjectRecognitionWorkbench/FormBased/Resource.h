@@ -9,6 +9,8 @@
 #define IDR_ObjectRecognitionWorkbenchTYPE 130
 #define IDD_SAVE_PCD_FLAGS              312
 #define IDD_CHOOSE_CAMERA               314
+#define IDD_GAUSSIAN_SETTINGS           316
+#define IDD_CANNY_SETTINGS              317
 #define IDC_H                           1000
 #define IDC_OGL_CAMERA_FEED             1001
 #define IDC_OGL_DEPTH_FEED              1002
@@ -94,17 +96,29 @@
 #define IDC_APPLY_COLOR_FILTER          1080
 #define IDC_CHECK1                      1081
 #define IDC_EDGE_DETECTOR               1081
+#define IDC_L2_GRADIENT                 1081
 #define IDC_CAMERAS                     1084
-#define IDC_BUTTON1                     1085
 #define IDC_CLEAR_LOG                   1085
+#define IDC_CANNY_ENABLE                1087
+#define IDC_CANNY_SETTINGS              1088
+#define IDC_GAUSSIAN_ENABLE             1089
+#define IDC_SIZE_X                      1089
+#define IDC_GAUSSIAN_SETTINGS           1090
+#define IDC_SIZE_Y                      1090
+#define IDC_SIGMA_X                     1091
+#define IDC_SIGMA_Y                     1092
+#define IDC_BORDER_TYPE                 1093
+#define IDC_THRESHHOLD1                 1094
+#define IDC_THRESHHOLD2                 1095
+#define IDC_APERTURE                    1097
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        316
+#define _APS_NEXT_RESOURCE_VALUE        319
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1086
+#define _APS_NEXT_CONTROL_VALUE         1096
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif
