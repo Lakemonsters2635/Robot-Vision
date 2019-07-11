@@ -325,7 +325,9 @@ _T("    <PCLDebug Condition=\"'$(Configuration)'!='Debug'\">_release</PCLDebug>\
 _T("    <VTKDebug Condition=\"'$(Configuration)'=='Debug'\">-gd</VTKDebug>\n")
 _T("    <VTKDebug Condition=\"'$(Configuration)'!='Debug'\"></VTKDebug>\n")
 _T("    <BoostDebug Condition=\"'$(Configuration)'=='Debug'\">-gd</BoostDebug>\n")
-_T("    <BoostDebug Condition=\"'$(Configuration)'!='Debug'\"></BoostDebug>\n");
+_T("    <BoostDebug Condition=\"'$(Configuration)'!='Debug'\"></BoostDebug>\n")
+_T("    <OpenCVDebug Condition=\"'$(Configuration)'=='Debug'\">d</OpenCVDebug>\n")
+_T("    <OpenCVDebug Condition=\"'$(Configuration)'!='Debug'\"></OpenCVDebug>\n");
 
 LPCTSTR szProps2 =
 _T("  </PropertyGroup>\n")
@@ -341,6 +343,7 @@ _T("      $(PCL_ROOT)\\3rdParty\\FLANN\\include;\n")
 _T("      $(PCL_ROOT)\\3rdParty\\VTK\\include\\$(VTK_VER);\n")
 _T("      $(PCL_ROOT)\\3rdParty\\Boost\\include\\$(BOOST_VER);\n")
 _T("      $(librealsenseSDK)\\third-party\\glfw-imgui\\include;\n")
+_T("      $(OPENCV_ROOT)\\include;\n")
 _T("	  %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n")
 _T("    </ClCompile>\n")
 _T("    <Link>\n")
@@ -351,6 +354,7 @@ _T("        $(PCL_ROOT)\\lib;\n")
 _T("        $(PCL_ROOT)\\3rdParty\\Boost\\lib;\n")
 _T("        $(PCL_ROOT)\\3rdParty\\VTK\\lib;\n")
 _T("		$(LZ4_ROOT)\\$(PlatformShortName)\\$(Configuration);\n")
+_T("        $(OPENCV_ROOT)\\x64\\vc15\\lib;\n")
 _T("		%(AdditionalLibraryDirectories)\n")
 _T("	  </AdditionalLibraryDirectories>\n")
 _T("      <AdditionalDependencies>\n")
@@ -385,6 +389,8 @@ void AddLibs(CStdioFile& file, CString strDir, CString strDebugSuffix, CString s
 {
 	WIN32_FIND_DATA wfd;
 
+// Look for files of form *.lib
+
 	HANDLE hFind = ::FindFirstFile(strDir + _T("\\*.lib"), &wfd);
 	if (hFind == INVALID_HANDLE_VALUE)
 		return;
@@ -394,16 +400,26 @@ void AddLibs(CStdioFile& file, CString strDir, CString strDebugSuffix, CString s
 		CString strLine;
 		strLine.Empty();
 
+// If strDebugSuffix is "", there's only one version of the file.  Write its name
+
 		if (strDebugSuffix.IsEmpty())
 		{
 			strLine.Format(_T("        %s;\n"), wfd.cFileName);
 		}
+
+// If strDebugSuffix is not "", then we look for a file containing that "suffix" somewhere in its name.
+// The nomenclature "suffix" is left over from an earlier version of this code that required the debug
+// string to be a trailing suffix (just before the .lib extension).
+
 		else
 		{
 			CString strFile = wfd.cFileName;
 			int nIdx = strFile.Find(strDebugSuffix);
 			if (nIdx != -1)
 			{
+// Replace the debug suffix with a variable (strDebugVariable).  We end up with, for example:
+// pcl_visualization$(PCLDebug).lib
+
 				strFile = strFile.Left(nIdx) + strDebugVariable + strFile.Mid(nIdx + strDebugSuffix.GetLength());
 				strLine.Format(_T("        %s;\n"), strFile);
 			}
@@ -423,6 +439,7 @@ CString strPCL_ROOT;
 CString strOPENNI2_INCLUDE64;
 CString strOPENNI2_LIB64;
 CString strOPENNI2_REDIST64;
+CString strOPENCV_ROOT;
 
 typedef struct tagEnv
 {
@@ -434,8 +451,9 @@ ENV EnvVbls[] = {
 	{ _T("PCL_ROOT"), strPCL_ROOT },
 	{ _T("OPENNI2_INCLUDE64"), strOPENNI2_INCLUDE64 },
 	{ _T("OPENNI2_LIB64"), strOPENNI2_LIB64 },
-	{ _T("OPENNI2_REDIST64"), strOPENNI2_REDIST64 }
-
+	{ _T("OPENNI2_REDIST64"), strOPENNI2_REDIST64 },
+//	{ _T("OPENCV_VER"), strOPENCV_VER },
+	{ _T("OPENCV_ROOT"), strOPENCV_ROOT }
 };
 
 #define	N_ENVS		(sizeof(EnvVbls)/sizeof(EnvVbls[0]))
@@ -454,7 +472,8 @@ LPCTSTR szDirectories[] = {
 	_T("$(librealsenseSDK)\\samples\\$(PlatformShortName)\\$(Configuration)"),
 	_T("$(librealsenseSDK)\\include"),
 	_T("$(librealsenseSDK)\\third-party"),
-	_T("$(librealsenseSDK)\\third-party\\glfw-imgui\\include")
+	_T("$(librealsenseSDK)\\third-party\\glfw-imgui\\include"),
+	_T("$(OPENCV_ROOT")
 };
 
 #define	N_DIRS		(sizeof(szDirectories)/sizeof(szDirectories[0]))
@@ -536,7 +555,18 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 			bError = TRUE;
 	}
 
-// Verify the directories
+	if (strPath.Find(strOPENCV_ROOT + _T("\\x64\\vc15\\bin")) == -1)
+	{
+		::AfxMessageBox(CString(_T("PATH should contain ")) + strOPENCV_ROOT + _T("\\x64\\vc15\\bin") + _T(", but doesn't."), MB_ICONEXCLAMATION | MB_OK);
+		//		if (::AfxMessageBox(CString(_T("PATH should contain ")) + strOPENCV_ROOT + _T("\\x64\\vc15\\bin") + _T(", but doesn't\n\nShall I add it?"), MB_ICONEXCLAMATION | MB_YESNO) == IDYES)
+				//{
+				//	bError = !AddToSystemPath(strOPENCV_ROOT + _T("\\x64\\vc15\\bin"));
+				//}
+				//else
+		bError = TRUE;
+	}
+
+	// Verify the directories
 
 	for (int i = 0; i < N_DIRS; i++)
 	{
@@ -576,6 +606,10 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 			else if (strDir.Mid(nIdx + 2, 9) == _T("BOOST_VER"))
 			{
 				strDir = strDir.Left(nIdx) + m_strBoostIncludeDirectory + strDir.Mid(nIdx + 12);
+			}
+			else if (strDir.Mid(nIdx + 2, 11) == _T("OPENCV_ROOT"))
+			{
+				strDir = strDir.Left(nIdx) + strOPENCV_ROOT + strDir.Mid(nIdx + 14);
 			}
 		}
 
@@ -654,10 +688,14 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 		AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\Boost\\lib"), _T("-gd"), _T("$(BoostDebug)"));
 		AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\VTK\\lib"), _T("-gd"), _T("$(VTKDebug)"));
 
+		AddLibs(file, strOPENCV_ROOT + _T("\\x64\\vc15\\lib"), _T("d.lib"), _T("$(OPENCVDebug).lib"));
+
 		file.WriteString(szProps3);
 
 		::AfxMessageBox(_T("Done!"), MB_ICONINFORMATION | MB_OK);
 	}
+	else
+		::AfxMessageBox(_T(".props file not built due to fatal errors"), MB_ICONINFORMATION | MB_OK);
 }
 
 
