@@ -37,6 +37,7 @@ public:
 	CString m_strRealSenseDirectory;
 	CString m_strPCLDirectory;
 	CString m_strLZ4Directory;
+	CString m_strOpenCVDirectory;
 	CString m_strPCLIncludeDirectory;
 	CString m_strVTKIncludeDirectory;
 	CString m_strBoostIncludeDirectory;
@@ -47,4 +48,8 @@ public:
 	afx_msg void OnBnClickedBrowseRealsense();
 	afx_msg void OnBnClickedGo();
 	afx_msg void OnBnClickedHelp();
+	BOOL m_bAddRealSense;
+	BOOL m_bAddPCL;
+	BOOL m_bAddOpenCV;
+	BOOL m_bAddLZ4;
 };

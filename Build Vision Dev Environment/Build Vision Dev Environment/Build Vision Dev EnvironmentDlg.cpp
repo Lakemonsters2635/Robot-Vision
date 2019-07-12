@@ -126,6 +126,11 @@ CBuildVisionDevEnvironmentDlg::CBuildVisionDevEnvironmentDlg(CWnd* pParent /*=NU
 	, m_strRealSenseDirectory(_T(""))
 	, m_strPCLDirectory(_T(""))
 	, m_strLZ4Directory(_T(""))
+	, m_strOpenCVDirectory(_T(""))
+	, m_bAddRealSense(FALSE)
+	, m_bAddPCL(FALSE)
+	, m_bAddOpenCV(FALSE)
+	, m_bAddLZ4(FALSE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -137,6 +142,11 @@ void CBuildVisionDevEnvironmentDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_REALSENSE_DIRECTORY, m_strRealSenseDirectory);
 	DDX_Text(pDX, IDC_PCL_DIRECTORY, m_strPCLDirectory);
 	DDX_Text(pDX, IDC_LZ4_DIRECTORY, m_strLZ4Directory);
+	DDX_Text(pDX, IDC_OPENCV_DIRECTORY, m_strOpenCVDirectory);
+	DDX_Check(pDX, IDC_ADD_REALSENSE, m_bAddRealSense);
+	DDX_Check(pDX, IDC_ADD_PCL, m_bAddPCL);
+	DDX_Check(pDX, IDC_ADD_OPENCV, m_bAddOpenCV);
+	DDX_Check(pDX, IDC_ADD_LZ4, m_bAddLZ4);
 }
 
 BEGIN_MESSAGE_MAP(CBuildVisionDevEnvironmentDlg, CDialogEx)
@@ -216,6 +226,9 @@ BOOL CBuildVisionDevEnvironmentDlg::OnInitDialog()
 	m_strLZ4Directory = ::GetEnv(_T("LZ4_ROOT"));
 	if (m_strLZ4Directory.IsEmpty())
 		m_strLZ4Directory = _T("LZ4_ROOT not set.  Is LZ4 installed?");
+	m_strOpenCVDirectory = ::GetEnv(_T("OPENCV_ROOT"));
+	if (m_strOpenCVDirectory.IsEmpty())
+		m_strOpenCVDirectory = _T("OPENCV_ROOT not set.  Is OpenCV installed?  If so, you need to set the OPENCV_ROOT environment variable manually.");
 
 	m_strPCLIncludeDirectory = ::GetIncludeVersion(m_strPCLDirectory);
 	m_strVTKIncludeDirectory = ::GetIncludeVersion(m_strPCLDirectory + _T("\\3rdParty\\VTK"));
@@ -318,14 +331,20 @@ LPCTSTR szProps1 =
 _T("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
 _T("<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n")
 _T("  <ImportGroup Label=\"PropertySheets\" />\n")
-_T("  <PropertyGroup Label=\"UserMacros\">\n")
-_T("    <librealsenseSDK>$(ProgramFiles)\\Intel RealSense SDK 2.0</librealsenseSDK>\n")
+_T("  <PropertyGroup Label=\"UserMacros\">\n");
+
+LPCTSTR szRealSenseMacro =
+_T("    <librealsenseSDK>$(ProgramFiles)\\Intel RealSense SDK 2.0</librealsenseSDK>\n");
+
+LPCTSTR szPCLMacro =
 _T("    <PCLDebug Condition=\"'$(Configuration)'=='Debug'\">_debug</PCLDebug>\n")
 _T("    <PCLDebug Condition=\"'$(Configuration)'!='Debug'\">_release</PCLDebug>\n")
 _T("    <VTKDebug Condition=\"'$(Configuration)'=='Debug'\">-gd</VTKDebug>\n")
 _T("    <VTKDebug Condition=\"'$(Configuration)'!='Debug'\"></VTKDebug>\n")
 _T("    <BoostDebug Condition=\"'$(Configuration)'=='Debug'\">-gd</BoostDebug>\n")
-_T("    <BoostDebug Condition=\"'$(Configuration)'!='Debug'\"></BoostDebug>\n")
+_T("    <BoostDebug Condition=\"'$(Configuration)'!='Debug'\"></BoostDebug>\n");
+
+LPCTSTR szOpenCVMacro =
 _T("    <OpenCVDebug Condition=\"'$(Configuration)'=='Debug'\">d</OpenCVDebug>\n")
 _T("    <OpenCVDebug Condition=\"'$(Configuration)'!='Debug'\"></OpenCVDebug>\n");
 
@@ -334,47 +353,73 @@ _T("  </PropertyGroup>\n")
 _T("  <PropertyGroup />\n")
 _T("  <ItemDefinitionGroup>\n")
 _T("    <ClCompile>\n")
-_T("      <AdditionalIncludeDirectories>")
+_T("      <AdditionalIncludeDirectories>");
+
+LPCTSTR szRealSenseInclude =
 _T("      $(librealsenseSDK)\\include;\n")
-_T("	  $(librealsenseSDK)\\third-party\\;\n")
+_T("      $(librealsenseSDK)\\third-party\\;\n")
+_T("      $(librealsenseSDK)\\third-party\\glfw-imgui\\include;\n");
+
+LPCTSTR szPCLInclude =
 _T("      $(PCL_ROOT)\\include\\$(PCL_VER);\n")
 _T("      $(PCL_ROOT)\\3rdParty\\Eigen\\eigen3;\n")
 _T("      $(PCL_ROOT)\\3rdParty\\FLANN\\include;\n")
 _T("      $(PCL_ROOT)\\3rdParty\\VTK\\include\\$(VTK_VER);\n")
-_T("      $(PCL_ROOT)\\3rdParty\\Boost\\include\\$(BOOST_VER);\n")
-_T("      $(librealsenseSDK)\\third-party\\glfw-imgui\\include;\n")
-_T("      $(OPENCV_ROOT)\\include;\n")
-_T("	  %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n")
+_T("      $(PCL_ROOT)\\3rdParty\\Boost\\include\\$(BOOST_VER);\n");
+
+LPCTSTR szOpenCVInclude =
+_T("      $(OPENCV_ROOT)\\include;\n");
+
+LPCTSTR szProps2a =
+_T("      %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n")
 _T("    </ClCompile>\n")
 _T("    <Link>\n")
-_T("      <AdditionalLibraryDirectories>\n")
-_T("		$(librealsenseSDK)\\lib\\$(PlatformShortName);\n")
-_T("		$(librealsenseSDK)\\samples\\$(PlatformShortName)\\$(Configuration);\n")
+_T("      <AdditionalLibraryDirectories>\n");
+
+
+LPCTSTR szRealSenseLibraryInclude =
+_T("        $(librealsenseSDK)\\lib\\$(PlatformShortName);\n")
+_T("        $(librealsenseSDK)\\samples\\$(PlatformShortName)\\$(Configuration);\n");
+
+LPCTSTR szPCLLibraryInclude =
 _T("        $(PCL_ROOT)\\lib;\n")
 _T("        $(PCL_ROOT)\\3rdParty\\Boost\\lib;\n")
-_T("        $(PCL_ROOT)\\3rdParty\\VTK\\lib;\n")
-_T("		$(LZ4_ROOT)\\$(PlatformShortName)\\$(Configuration);\n")
-_T("        $(OPENCV_ROOT)\\x64\\vc15\\lib;\n")
-_T("		%(AdditionalLibraryDirectories)\n")
-_T("	  </AdditionalLibraryDirectories>\n")
+_T("        $(PCL_ROOT)\\3rdParty\\VTK\\lib;\n");
+
+LPCTSTR szLZ4LibraryInclude =
+_T("        $(LZ4_ROOT)\\$(PlatformShortName)\\$(Configuration);\n");
+
+LPCTSTR szOpenCVLibraryInclude =
+_T("        $(OPENCV_ROOT)\\x64\\vc15\\lib;\n");
+
+
+LPCTSTR szProps2b =
+_T("        %(AdditionalLibraryDirectories)\n")
+_T("      </AdditionalLibraryDirectories>\n")
 _T("      <AdditionalDependencies>\n")
-_T("		realsense2.lib;\n")
-_T("		liblz4_static.lib;\n")
-_T("		glfw-imgui.lib;\n")
+_T("        realsense2.lib;\n")
+_T("        liblz4_static.lib;\n")
+_T("        glfw-imgui.lib;\n")
 _T("        glu32.lib;\n")
 _T("        opengl32.lib;\n");
 
 LPCTSTR szProps3 =
-_T("		%(AdditionalDependencies)\n")
-_T("	  </AdditionalDependencies>\n")
+_T("      %(AdditionalDependencies)\n")
+_T("      </AdditionalDependencies>\n")
 _T("      <ShowProgress>LinkVerbose</ShowProgress>\n")
-_T("    </Link>\n")
+_T("    </Link>\n");
+
+
+LPCTSTR szRealSensePostBuild =
 _T("    <PostBuildEvent>\n")
 _T("      <Command>xcopy /y \"$(librealsenseSDK)\\bin\\$(PlatformShortName)\\realsense2.dll\" \"$(OutDir)\"</Command>\n")
 _T("    </PostBuildEvent>\n")
 _T("    <PostBuildEvent>\n")
 _T("      <Message>Copy Intel RealSense SDK 2.0 shared module next to the application</Message>\n")
-_T("    </PostBuildEvent>\n")
+_T("    </PostBuildEvent>\n");
+
+
+LPCTSTR szProps3a =
 _T("  </ItemDefinitionGroup>\n")
 _T("  <ItemGroup>\n")
 _T("    <BuildMacro Include=\"librealsenseSDK\">\n")
@@ -484,6 +529,8 @@ LPCTSTR pszConfigs[2] = { _T("Debug"), _T("Release") };
 void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 {
 	BOOL bError = FALSE;
+	UpdateData(TRUE);
+
 // Test for correct installation of components
 
 /*	PCL
@@ -672,25 +719,63 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedGo()
 
 		file.WriteString(szProps1);
 
-		strVbl.Format(_T("    <PCL_VER>%s</PCL_VER>\n"), m_strPCLIncludeDirectory);
-		file.WriteString(strVbl);
+		if (m_bAddRealSense)
+			file.WriteString(szRealSenseMacro);
 
-		strVbl.Format(_T("    <VTK_VER>%s</VTK_VER>\n"), m_strVTKIncludeDirectory);
-		file.WriteString(strVbl);
+		if (m_bAddPCL)
+		{
+			file.WriteString(szPCLMacro);
+			strVbl.Format(_T("    <PCL_VER>%s</PCL_VER>\n"), m_strPCLIncludeDirectory);
+			file.WriteString(strVbl);
 
-		strVbl.Format(_T("    <BOOST_VER>%s</BOOST_VER>\n"), m_strBoostIncludeDirectory);
-		file.WriteString(strVbl);
+			strVbl.Format(_T("    <VTK_VER>%s</VTK_VER>\n"), m_strVTKIncludeDirectory);
+			file.WriteString(strVbl);
+
+			strVbl.Format(_T("    <BOOST_VER>%s</BOOST_VER>\n"), m_strBoostIncludeDirectory);
+			file.WriteString(strVbl);
+		}
+		
+		if (m_bAddOpenCV)
+			file.WriteString(szOpenCVMacro);
+
 
 
 		file.WriteString(szProps2);
 
-		AddLibs(file, m_strPCLDirectory + _T("\\lib"), _T("_debug"), _T("$(PCLDebug)"));
-		AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\Boost\\lib"), _T("-gd"), _T("$(BoostDebug)"));
-		AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\VTK\\lib"), _T("-gd"), _T("$(VTKDebug)"));
+		if (m_bAddRealSense)
+			file.WriteString(szRealSenseInclude);
+		if (m_bAddPCL)
+			file.WriteString(szPCLInclude);
+		if (m_bAddOpenCV)
+			file.WriteString(szOpenCVInclude);
 
-		AddLibs(file, strOPENCV_ROOT + _T("\\x64\\vc15\\lib"), _T("d.lib"), _T("$(OPENCVDebug).lib"));
+		file.WriteString(szProps2a);
+
+		if (m_bAddRealSense)
+			file.WriteString(szRealSenseLibraryInclude);
+		if (m_bAddPCL)
+			file.WriteString(szPCLLibraryInclude);
+		if (m_bAddLZ4)
+			file.WriteString(szLZ4LibraryInclude);
+		if (m_bAddOpenCV)
+			file.WriteString(szOpenCVLibraryInclude);
+
+		file.WriteString(szProps2b);
+
+		if (m_bAddPCL)
+		{
+			AddLibs(file, m_strPCLDirectory + _T("\\lib"), _T("_debug"), _T("$(PCLDebug)"));
+			AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\Boost\\lib"), _T("-gd"), _T("$(BoostDebug)"));
+			AddLibs(file, m_strPCLDirectory + _T("\\3rdParty\\VTK\\lib"), _T("-gd"), _T("$(VTKDebug)"));
+		}
+
+		if (m_bAddOpenCV)
+			AddLibs(file, strOPENCV_ROOT + _T("\\x64\\vc15\\lib"), _T("d.lib"), _T("$(OPENCVDebug).lib"));
 
 		file.WriteString(szProps3);
+		if (m_bAddRealSense)
+			file.WriteString(szRealSensePostBuild);
+		file.WriteString(szProps3a);
 
 		::AfxMessageBox(_T("Done!"), MB_ICONINFORMATION | MB_OK);
 	}

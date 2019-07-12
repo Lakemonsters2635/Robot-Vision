@@ -1362,7 +1362,7 @@ void CFormBasedView::OnBnClickedGaussianSettings()
 
 void CFormBasedView::OnBnClickedCannySettings()
 {
-	CCannySettings dlg(m_dThreshhold1Canny, m_dThreshhold2Canny, m_nApertureCanny, m_bCannyEnable);
+	CCannySettings dlg(m_dThreshhold1Canny, m_dThreshhold2Canny, m_nApertureCanny, m_bL2GradientCanny);
 
 	if (dlg.DoModal() == IDOK)
 	{

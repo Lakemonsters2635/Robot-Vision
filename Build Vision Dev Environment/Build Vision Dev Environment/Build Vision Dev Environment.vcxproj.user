@@ -8,4 +8,7 @@
     <LocalDebuggerCommandArguments>"C:\Users\home\source\repos\Ball Recognizer"</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup>
+    <RESOURCE_FILE>Build Vision Dev Environment.rc</RESOURCE_FILE>
+  </PropertyGroup>
 </Project>
