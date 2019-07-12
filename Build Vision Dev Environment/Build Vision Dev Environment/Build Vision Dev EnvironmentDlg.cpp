@@ -157,6 +157,7 @@ BEGIN_MESSAGE_MAP(CBuildVisionDevEnvironmentDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BROWSE_REALSENSE, &CBuildVisionDevEnvironmentDlg::OnBnClickedBrowseRealsense)
 	ON_BN_CLICKED(IDC_GO, &CBuildVisionDevEnvironmentDlg::OnBnClickedGo)
 	ON_BN_CLICKED(IDC_MYHELP, &CBuildVisionDevEnvironmentDlg::OnBnClickedHelp)
+	ON_EN_CHANGE(IDC_TARGET_DIRECTORY, &CBuildVisionDevEnvironmentDlg::OnEnChangeTargetDirectory)
 END_MESSAGE_MAP()
 
 
@@ -298,6 +299,13 @@ void CBuildVisionDevEnvironmentDlg::OnBnClickedBrowseTarget()
 		UpdateData(FALSE);
 		AfxGetApp()->WriteProfileString(_T("Directories"), _T("Target"), m_strTargetDirectory);
 	}
+}
+
+
+void CBuildVisionDevEnvironmentDlg::OnEnChangeTargetDirectory()
+{
+	UpdateData(FALSE);
+	AfxGetApp()->WriteProfileString(_T("Directories"), _T("Target"), m_strTargetDirectory);
 }
 
 

@@ -52,4 +52,5 @@ public:
 	BOOL m_bAddPCL;
 	BOOL m_bAddOpenCV;
 	BOOL m_bAddLZ4;
+	afx_msg void OnEnChangeTargetDirectory();
 };
