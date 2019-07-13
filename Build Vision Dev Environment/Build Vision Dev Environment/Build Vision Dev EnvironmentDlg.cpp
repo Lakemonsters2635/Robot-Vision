@@ -127,10 +127,10 @@ CBuildVisionDevEnvironmentDlg::CBuildVisionDevEnvironmentDlg(CWnd* pParent /*=NU
 	, m_strPCLDirectory(_T(""))
 	, m_strLZ4Directory(_T(""))
 	, m_strOpenCVDirectory(_T(""))
-	, m_bAddRealSense(FALSE)
-	, m_bAddPCL(FALSE)
-	, m_bAddOpenCV(FALSE)
-	, m_bAddLZ4(FALSE)
+	, m_bAddRealSense(TRUE)
+	, m_bAddPCL(TRUE)
+	, m_bAddOpenCV(TRUE)
+	, m_bAddLZ4(TRUE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -223,13 +223,22 @@ BOOL CBuildVisionDevEnvironmentDlg::OnInitDialog()
 	m_strRealSenseDirectory = CString(szProgramFiles86) + _T("\\Intel RealSense SDK 2.0");
 	m_strPCLDirectory = ::GetEnv(_T("PCL_ROOT"));
 	if (m_strPCLDirectory.IsEmpty())
+	{
 		m_strPCLDirectory = _T("PCL_ROOT not set.  Is PCL installed?");
+		m_bAddPCL = FALSE;
+	}
 	m_strLZ4Directory = ::GetEnv(_T("LZ4_ROOT"));
 	if (m_strLZ4Directory.IsEmpty())
+	{
 		m_strLZ4Directory = _T("LZ4_ROOT not set.  Is LZ4 installed?");
+		m_bAddLZ4 = FALSE;
+	}
 	m_strOpenCVDirectory = ::GetEnv(_T("OPENCV_ROOT"));
 	if (m_strOpenCVDirectory.IsEmpty())
+	{
 		m_strOpenCVDirectory = _T("OPENCV_ROOT not set.  Is OpenCV installed?  If so, you need to set the OPENCV_ROOT environment variable manually.");
+		m_bAddOpenCV = FALSE;
+	}
 
 	m_strPCLIncludeDirectory = ::GetIncludeVersion(m_strPCLDirectory);
 	m_strVTKIncludeDirectory = ::GetIncludeVersion(m_strPCLDirectory + _T("\\3rdParty\\VTK"));
