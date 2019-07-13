@@ -1,0 +1,26 @@
+<UserSettings>
+  <ApplicationIdentity version="15.0"/>
+  <ToolsOptions/>
+  <Category name="Environment_Group" RegisteredName="Environment_Group">
+    <Category name="Environment_ExternalTools" Category="{E8FAE9E8-FBA2-4474-B134-AB0FFCFB291D}" Package="{DA9FB551-C724-11d0-AE1F-00A0C90FFFC3}" RegisteredName="Environment_ExternalTools" PackageName="Visual Studio Environment Package">
+      <ExternalTools>
+        <UserCreatedTool>
+          <Arguments>$(SolutionDir)</Arguments>
+          <CloseOnExit>false</CloseOnExit>
+          <Command>%vsspv_user_appdata%\source\repos\Lakemonsters2635\Robot-Vision\Build Vision Dev Environment\x64\Release\Build Vision Dev Environment.exe</Command>
+          <Index>3</Index>
+          <InitialDirectory></InitialDirectory>
+          <IsGUIapp>true</IsGUIapp>
+          <NameID>0</NameID>
+          <Package>{00000000-0000-0000-0000-000000000000}</Package>
+          <PromptForArguments>false</PromptForArguments>
+          <SaveAllDocs>true</SaveAllDocs>
+          <Title>Build Vision Dev Env</Title>
+          <Unicode>false</Unicode>
+          <UseOutputWindow>false</UseOutputWindow>
+          <UseTaskList>false</UseTaskList>
+        </UserCreatedTool>
+      </ExternalTools>
+    </Category>
+  </Category>
+</UserSettings>
