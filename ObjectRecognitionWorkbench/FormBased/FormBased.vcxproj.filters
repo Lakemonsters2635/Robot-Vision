@@ -116,6 +116,7 @@
     <None Include="res\FormBased.rc2">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FormBased.rc">

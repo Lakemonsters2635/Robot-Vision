@@ -1,9 +1,9 @@
 #include "stdafx.h"
-#include "CPointCloudViewer.h"
 #include <vector>
-
 #undef max
 #undef min
+#include "CPointCloudViewer.h"
+
 
 struct byte3
 {

@@ -97,7 +97,7 @@ extern "C" LRESULT FAR PASCAL ComboBoxListBoxProc(HWND hWnd, UINT nMsg, WPARAM w
 		case WM_CHAR: {
 			if (wParam == VK_SPACE) {
 				// Get the current selection
-				LRESULT nIndex = CallWindowProcA(m_pWndProc, hWnd, LB_GETCURSEL, wParam, lParam);
+				INT nIndex = (INT) (CallWindowProcA(m_pWndProc, hWnd, LB_GETCURSEL, wParam, lParam));
 
 				CRect rcItem;
 				SendMessage(hWnd, LB_GETITEMRECT, nIndex, (LPARAM)(VOID *)&rcItem);
@@ -130,7 +130,7 @@ extern "C" LRESULT FAR PASCAL ComboBoxListBoxProc(HWND hWnd, UINT nMsg, WPARAM w
 				LRESULT nTopIndex   = SendMessage(hWnd, LB_GETTOPINDEX, 0, 0);
 
 				// Compute which index to check/uncheck
-				LRESULT nIndex = nTopIndex + pt.y / nItemHeight;
+				INT nIndex = (INT) (nTopIndex + pt.y / nItemHeight);
 
 				CRect rcItem;
 				SendMessage(hWnd, LB_GETITEMRECT, nIndex, (LPARAM)(VOID *)&rcItem);
@@ -138,7 +138,7 @@ extern "C" LRESULT FAR PASCAL ComboBoxListBoxProc(HWND hWnd, UINT nMsg, WPARAM w
 				if (PtInRect(rcItem, pt)) {
 					// Invalidate this window
 					InvalidateRect(hWnd, rcItem, FALSE);
-					m_pComboBox->SetCheck(nIndex, !m_pComboBox->GetCheck(nIndex));
+					m_pComboBox->SetCheck((INT) nIndex, !m_pComboBox->GetCheck(nIndex));
 
 					// Notify that selection has changed
 					m_pComboBox->GetParent()->SendMessage(WM_COMMAND, MAKELONG(GetWindowLong(m_pComboBox->m_hWnd, GWL_ID), CBN_SELCHANGE), (LPARAM)m_pComboBox->m_hWnd);
@@ -439,7 +439,7 @@ INT CCheckComboBox::SetCheck(INT nIndex, BOOL bFlag)
 
 BOOL CCheckComboBox::GetCheck(INT nIndex)
 {
-	return GetItemData(nIndex);
+	return (BOOL) GetItemData(nIndex);
 }
 
 
