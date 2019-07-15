@@ -40,6 +40,20 @@ public:
 		, leftB(0)
 		, rightB(255)
 	{}
+	ColorFilter(int LH, int RH, int LS, int RS, int LV, int RV, int LR, int RR, int LG, int RG, int LB, int RB)
+		: leftH(LH)
+		, rightH(RH)
+		, leftS(LS)
+		, rightS(RS)
+		, leftV(LV)
+		, rightV(RV)
+		, leftR(LR)
+		, rightR(RR)
+		, leftG(LG)
+		, rightG(RG)
+		, leftB(LB)
+		, rightB(RB)
+	{}
 	int	leftH;
 	int	rightH;
 	int	leftS;
@@ -62,9 +76,13 @@ inline bool Filter(BYTE pixelColor, const int left, const int right)
 	{
 		return pixelColor < left || pixelColor > right;
 	}
-	else
+	else if (left > right)
 	{
 		return pixelColor < left && pixelColor > right;
+	}
+	else
+	{
+		return pixelColor != left;
 	}
 }
 

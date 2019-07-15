@@ -9,41 +9,41 @@
     <VTKDebug Condition="'$(Configuration)'!='Debug'"></VTKDebug>
     <BoostDebug Condition="'$(Configuration)'=='Debug'">-gd</BoostDebug>
     <BoostDebug Condition="'$(Configuration)'!='Debug'"></BoostDebug>
-    <OpenCVDebug Condition="'$(Configuration)'=='Debug'">d</OpenCVDebug>
-    <OpenCVDebug Condition="'$(Configuration)'!='Debug'"></OpenCVDebug>
     <PCL_VER>pcl-1.9</PCL_VER>
     <VTK_VER>vtk-8.1</VTK_VER>
     <BOOST_VER>boost-1_68</BOOST_VER>
+    <OpenCVDebug Condition="'$(Configuration)'=='Debug'">d</OpenCVDebug>
+    <OpenCVDebug Condition="'$(Configuration)'!='Debug'"></OpenCVDebug>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>      $(librealsenseSDK)\include;
-	  $(librealsenseSDK)\third-party\;
+      $(librealsenseSDK)\third-party\;
+      $(librealsenseSDK)\third-party\glfw-imgui\include;
       $(PCL_ROOT)\include\$(PCL_VER);
       $(PCL_ROOT)\3rdParty\Eigen\eigen3;
       $(PCL_ROOT)\3rdParty\FLANN\include;
       $(PCL_ROOT)\3rdParty\VTK\include\$(VTK_VER);
       $(PCL_ROOT)\3rdParty\Boost\include\$(BOOST_VER);
-      $(librealsenseSDK)\third-party\glfw-imgui\include;
       $(OPENCV_ROOT)\include;
-	  %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
-		$(librealsenseSDK)\lib\$(PlatformShortName);
-		$(librealsenseSDK)\samples\$(PlatformShortName)\$(Configuration);
+        $(librealsenseSDK)\lib\$(PlatformShortName);
+        $(librealsenseSDK)\samples\$(PlatformShortName)\$(Configuration);
         $(PCL_ROOT)\lib;
         $(PCL_ROOT)\3rdParty\Boost\lib;
         $(PCL_ROOT)\3rdParty\VTK\lib;
-		$(LZ4_ROOT)\$(PlatformShortName)\$(Configuration);
+        $(LZ4_ROOT)\$(PlatformShortName)\$(Configuration);
         $(OPENCV_ROOT)\x64\vc15\lib;
-		%(AdditionalLibraryDirectories)
-	  </AdditionalLibraryDirectories>
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
       <AdditionalDependencies>
-		realsense2.lib;
-		liblz4_static.lib;
-		glfw-imgui.lib;
+        realsense2.lib;
+        liblz4_static.lib;
+        glfw-imgui.lib;
         glu32.lib;
         opengl32.lib;
         pcl_common$(PCLDebug).lib;
@@ -271,8 +271,8 @@
         opencv_ximgproc411$(OPENCVDebug).lib;
         opencv_xobjdetect411$(OPENCVDebug).lib;
         opencv_xphoto411$(OPENCVDebug).lib;
-		%(AdditionalDependencies)
-	  </AdditionalDependencies>
+      %(AdditionalDependencies)
+      </AdditionalDependencies>
       <ShowProgress>LinkVerbose</ShowProgress>
     </Link>
     <PostBuildEvent>

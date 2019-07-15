@@ -17,7 +17,8 @@
 #include "CCannySettings.h"
 
 #include <librealsense2/rs_advanced_mode.hpp>
-
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/types_c.h>
 
 //#ifdef _DEBUG
 //#define new DEBUG_NEW
@@ -116,6 +117,7 @@ RANSACModels ransacModels[] = {
 };
 
 static ColorFilter noFilter;
+static ColorFilter WhiteOnly(0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255);
 
 void
 AdjustAspect(int& nOGLWidth, int& nOGLHeight)
@@ -1026,6 +1028,8 @@ void CFormBasedView::OnEnChange()
 
 void CFormBasedView::OnBnClickedGo()
 {
+	using namespace cv;
+
 	UpdateData(TRUE);
 
 	m_Layers.clear();
@@ -1043,9 +1047,57 @@ void CFormBasedView::OnBnClickedGo()
 	auto depth = frameset.get_depth_frame();
 	auto color = frameset.get_color_frame();
 
+// Apply any 2D transformations
+
+	const int w = color.as<rs2::video_frame>().get_width();
+	const int h = color.as<rs2::video_frame>().get_height();
+	Mat image(Size(w, h), CV_8UC3, (void*)color.get_data(), Mat::AUTO_STEP);
+
+	//const auto window_name = "Display Image";
+	//namedWindow(window_name, WINDOW_AUTOSIZE);
+
+	if (m_bGaussianEnable)
+	{
+		//auto dest = image.clone();
+		GaussianBlur(image, image, Size(m_sizeGaussian.cx, m_sizeGaussian.cy), m_dSigmaXGaussian, m_dSigmaYGaussian, m_nBorderTypeGaussian);
+		//imshow(window_name, image);
+		//waitKey(0);
+	}
+
+	if (m_bCannyEnable)
+	{
+		Mat mono;
+		auto myCopy = image.clone();
+
+		cvtColor(image, mono, CV_RGB2GRAY);
+		//imshow(window_name, mono);
+		//waitKey(0);
+		Canny(mono, mono, m_dThreshhold1Canny, m_dThreshhold2Canny, m_nApertureCanny, m_bL2GradientCanny);
+		//imshow(window_name, mono);
+		//waitKey(0);
+
+		//myCopy.copyTo(image, mono);
+		//imshow(window_name, image);
+		//waitKey(0);
+
+		image = Scalar::all(0);
+		cvtColor(mono, image, CV_GRAY2RGB);
+		//imshow(window_name, image);
+		//waitKey(0);
+
+		//Canny()
+	}
+
+	//{
+	//	Mat test(Size(w, h), CV_8UC3, (void*)color.get_data(), Mat::AUTO_STEP);
+	//	imshow(window_name, test);
+	//	waitKey(0);
+
+	//}
+
 	pc.map_to(color);
 
-	// Generate the pointcloud and texture mappings
+// Generate the pointcloud and texture mappings
 	points = pc.calculate(depth);
 
 	pcl_ptr pcl_points;
@@ -1077,7 +1129,7 @@ void CFormBasedView::OnBnClickedGo()
 	{
 // With no edge filter, just convert RS to PCL while applying the color filter
 
-		pcl_points = points_to_pcl(points, color, m_colorFilter);
+		pcl_points = points_to_pcl(points, color, m_bCannyEnable ? WhiteOnly : m_colorFilter);
 	}
 
 	pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
@@ -1136,147 +1188,150 @@ void CFormBasedView::OnBnClickedGo()
 
 	m_Layers.push_back(new Feature(cloud_filtered));
 
-// Now run RANSAC using the SAC model and parameters
-
-	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
-	pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-	// Create the segmentation object
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
-	// Optional
-	seg.setOptimizeCoefficients(true);
-	// Mandatory
-	seg.setModelType(m_nSACModel);
-	seg.setMethodType(pcl::SAC_RANSAC);
-	seg.setMaxIterations(m_nMaxIterations);
-	seg.setDistanceThreshold(m_fDistanceThreshhold);
-
-	if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) == 0)
-		seg.setRadiusLimits(m_fRadiusLimitsMin, m_fRadiusLimitsMax);
-
-	if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) == 0)
+	if (m_nSACModel != 0)
 	{
-		Eigen::Vector3f axis(m_fAxisX, m_fAxisY, m_fAxisZ);
-		seg.setAxis(axis);
-	}
+		// Now run RANSAC using the SAC model and parameters
 
-	if ((GetDlgItem(IDC_EPSILON_LABEL)->GetStyle() & WS_DISABLED) == 0)
-	{
-		seg.setEpsAngle(m_fEpsilon);
-	}
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+		pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+		// Create the segmentation object
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+		// Optional
+		seg.setOptimizeCoefficients(true);
+		// Mandatory
+		seg.setModelType(m_nSACModel);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setMaxIterations(m_nMaxIterations);
+		seg.setDistanceThreshold(m_fDistanceThreshhold);
 
-	// Create the filtering object
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
+		if ((GetDlgItem(IDC_RADIUS_LIMITS_LABEL)->GetStyle() & WS_DISABLED) == 0)
+			seg.setRadiusLimits(m_fRadiusLimitsMin, m_fRadiusLimitsMax);
 
-// SAC Model Name for printing in log file
-
-	CString strModelName;
-	for (auto& ransacModel : ransacModels)
-	{
-		if (ransacModel.model == m_nSACModel)
+		if ((GetDlgItem(IDC_AXIS_LABEL)->GetStyle() & WS_DISABLED) == 0)
 		{
-			strModelName = ransacModel.model_text;
-			break;
-		}
-	}
-
-	LARGE_INTEGER liStartExtract = liVolume;
-
-	int i = 0, nr_points = (int)cloud_filtered->points.size();
-	// While 30% of the original cloud is still there
-	while (cloud_filtered->points.size() > 0.3 * nr_points)
-	{
-		// Segment the largest planar component from the remaining cloud
-		seg.setInputCloud(cloud_filtered);
-		seg.segment(*inliers, *coefficients);
-		if (inliers->indices.size() == 0)
-		{
-			PrintToScreen(m_ctrlLog, _T("Could not estimate a %s model for the given dataset.\n"), strModelName);
-			break;
+			Eigen::Vector3f axis(m_fAxisX, m_fAxisY, m_fAxisZ);
+			seg.setAxis(axis);
 		}
 
-
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
-
-		// Extract the inliers
-		extract.setInputCloud(cloud_filtered);
-		extract.setIndices(inliers);
-		extract.setNegative(false);
-		extract.filter(*cloud_p);
-
-		LARGE_INTEGER liExtract;
-		::QueryPerformanceCounter(&liExtract);
-
-		PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud representing the %s component: %d\n"),
-			ConvertToSeconds(liExtract.QuadPart - liStartExtract.QuadPart), strModelName, cloud_p->width * cloud_p->height);
-
-		PrintToScreen(m_ctrlLog, _T("Model Coefficients:\nheader:\n"));
-		PrintModelCoefficients(m_ctrlLog, *coefficients);
-		feature_ptr p = new Feature(cloud_p);
-		pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
-		p->coefficients = c;
-		m_Layers.push_back(p);
-
-// Depending on the SAC Model, print the offset angle and distance
-		float fDistance = 0;
-
-		switch (m_nSACModel)
+		if ((GetDlgItem(IDC_EPSILON_LABEL)->GetStyle() & WS_DISABLED) == 0)
 		{
-		case pcl::SACMODEL_PLANE:
-		case pcl::SACMODEL_PERPENDICULAR_PLANE:
-		case pcl::SACMODEL_NORMAL_PLANE:
-		case pcl::SACMODEL_PARALLEL_PLANE:
-		case pcl::SACMODEL_NORMAL_PARALLEL_PLANE:
-			PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"), 
-				Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, coefficients->values[3], coefficients->values[3]*INCHES_PER_METER);
-			break;
-
-		case pcl::SACMODEL_LINE:
-		case pcl::SACMODEL_CIRCLE3D:
-			break;
-
-// The circle only returns the x&y coordinates of the circle center, plus its radius.  Let's try computing the distance
-// as the average Z value of all the points in the circle cloud.
-
-		case pcl::SACMODEL_CIRCLE2D:
-			for (auto& p : *cloud_p)
-			{
-				fDistance += p.z;
-			}
-			fDistance /= cloud_p->size();
-			PrintToScreen(m_ctrlLog, _T("Average distance to circle: %.2f (%.1f in)\n"), fDistance, fDistance*INCHES_PER_METER);
-			break;
-
-		case pcl::SACMODEL_SPHERE:
-			PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"), 
-				Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, DistanceXZ(*coefficients), DistanceXZ(*coefficients)*INCHES_PER_METER);
-			break;
-
-		case pcl::SACMODEL_CYLINDER:
-		//case pcl::SACMODEL_CONE:
-		//case pcl::SACMODEL_TORUS:
-		case pcl::SACMODEL_PARALLEL_LINE:
-		//case pcl::SACMODEL_PARALLEL_LINES:
-		case pcl::SACMODEL_NORMAL_SPHERE:
-		case pcl::SACMODEL_REGISTRATION:
-		case pcl::SACMODEL_REGISTRATION_2D:
-		case pcl::SACMODEL_STICK:
-			break;
+			seg.setEpsAngle(m_fEpsilon);
 		}
 
 		// Create the filtering object
-		extract.setNegative(true);
-		extract.filter(*cloud_f);
-		cloud_filtered.swap(cloud_f);
-		i++;
-		if (m_Layers.size() >= (N_COLORS - 1))
-			break;
+		pcl::ExtractIndices<pcl::PointXYZ> extract;
+
+		// SAC Model Name for printing in log file
+
+		CString strModelName;
+		for (auto& ransacModel : ransacModels)
+		{
+			if (ransacModel.model == m_nSACModel)
+			{
+				strModelName = ransacModel.model_text;
+				break;
+			}
+		}
+
+		LARGE_INTEGER liStartExtract = liVolume;
+
+		int i = 0, nr_points = (int)cloud_filtered->points.size();
+		// While 30% of the original cloud is still there
+		while (cloud_filtered->points.size() > 0.3 * nr_points)
+		{
+			// Segment the largest planar component from the remaining cloud
+			seg.setInputCloud(cloud_filtered);
+			seg.segment(*inliers, *coefficients);
+			if (inliers->indices.size() == 0)
+			{
+				PrintToScreen(m_ctrlLog, _T("Could not estimate a %s model for the given dataset.\n"), strModelName);
+				break;
+			}
+
+
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
+
+			// Extract the inliers
+			extract.setInputCloud(cloud_filtered);
+			extract.setIndices(inliers);
+			extract.setNegative(false);
+			extract.filter(*cloud_p);
+
+			LARGE_INTEGER liExtract;
+			::QueryPerformanceCounter(&liExtract);
+
+			PrintToScreen(m_ctrlLog, _T("%f sec.  PointCloud representing the %s component: %d\n"),
+				ConvertToSeconds(liExtract.QuadPart - liStartExtract.QuadPart), strModelName, cloud_p->width * cloud_p->height);
+
+			PrintToScreen(m_ctrlLog, _T("Model Coefficients:\nheader:\n"));
+			PrintModelCoefficients(m_ctrlLog, *coefficients);
+			feature_ptr p = new Feature(cloud_p);
+			pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
+			p->coefficients = c;
+			m_Layers.push_back(p);
+
+			// Depending on the SAC Model, print the offset angle and distance
+			float fDistance = 0;
+
+			switch (m_nSACModel)
+			{
+			case pcl::SACMODEL_PLANE:
+			case pcl::SACMODEL_PERPENDICULAR_PLANE:
+			case pcl::SACMODEL_NORMAL_PLANE:
+			case pcl::SACMODEL_PARALLEL_PLANE:
+			case pcl::SACMODEL_NORMAL_PARALLEL_PLANE:
+				PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"),
+					Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, coefficients->values[3], coefficients->values[3] * INCHES_PER_METER);
+				break;
+
+			case pcl::SACMODEL_LINE:
+			case pcl::SACMODEL_CIRCLE3D:
+				break;
+
+				// The circle only returns the x&y coordinates of the circle center, plus its radius.  Let's try computing the distance
+				// as the average Z value of all the points in the circle cloud.
+
+			case pcl::SACMODEL_CIRCLE2D:
+				for (auto& p : *cloud_p)
+				{
+					fDistance += p.z;
+				}
+				fDistance /= cloud_p->size();
+				PrintToScreen(m_ctrlLog, _T("Average distance to circle: %.2f (%.1f in)\n"), fDistance, fDistance*INCHES_PER_METER);
+				break;
+
+			case pcl::SACMODEL_SPHERE:
+				PrintToScreen(m_ctrlLog, _T("Angle = %.2f rad (%.1f deg)   Distance = %.2f m (%.1f in)\n"),
+					Angle(*coefficients), Angle(*coefficients)*DEGREES_PER_RADIAN, DistanceXZ(*coefficients), DistanceXZ(*coefficients)*INCHES_PER_METER);
+				break;
+
+			case pcl::SACMODEL_CYLINDER:
+				//case pcl::SACMODEL_CONE:
+				//case pcl::SACMODEL_TORUS:
+			case pcl::SACMODEL_PARALLEL_LINE:
+				//case pcl::SACMODEL_PARALLEL_LINES:
+			case pcl::SACMODEL_NORMAL_SPHERE:
+			case pcl::SACMODEL_REGISTRATION:
+			case pcl::SACMODEL_REGISTRATION_2D:
+			case pcl::SACMODEL_STICK:
+				break;
+			}
+
+			// Create the filtering object
+			extract.setNegative(true);
+			extract.filter(*cloud_f);
+			cloud_filtered.swap(cloud_f);
+			i++;
+			if (m_Layers.size() >= (N_COLORS - 1))
+				break;
+		}
+
+		LARGE_INTEGER liStop;
+		::QueryPerformanceCounter(&liStop);
+		PrintToScreen(m_ctrlLog, _T("%f sec.  Total Execution Time\n"),
+			ConvertToSeconds(liStop.QuadPart - liStart.QuadPart));
 	}
 
-	LARGE_INTEGER liStop;
-	::QueryPerformanceCounter(&liStop);
-	PrintToScreen(m_ctrlLog, _T("%f sec.  Total Execution Time\n"),
-		ConvertToSeconds(liStop.QuadPart - liStart.QuadPart));
-	   
 	draw_pointcloud(m_Layers);
 }
 
