@@ -199,6 +199,7 @@
     <ClInclude Include="CheckComboBox.h" />
     <ClInclude Include="CHistogram.h" />
     <ClInclude Include="COGLVideoControl.h" />
+    <ClInclude Include="COutlierSettings.h" />
     <ClInclude Include="CPointCloudViewer.h" />
     <ClInclude Include="CRealSenseVideo.h" />
     <ClInclude Include="example.hpp" />
@@ -218,6 +219,7 @@
     <ClCompile Include="CheckComboBox.cpp" />
     <ClCompile Include="CHistogram.cpp" />
     <ClCompile Include="COGLVideoControl.cpp" />
+    <ClCompile Include="COutlierSettings.cpp" />
     <ClCompile Include="CPointCloudViewer.cpp" />
     <ClCompile Include="CRealSenseVideo.cpp" />
     <ClCompile Include="FormBased.cpp" />

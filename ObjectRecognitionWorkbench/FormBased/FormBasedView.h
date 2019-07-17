@@ -191,17 +191,22 @@ protected:
 	double m_dThreshhold2Canny;
 	int m_nApertureCanny;
 	bool m_bL2GradientCanny;
+	BOOL m_bOutlierRemoval;
+	long m_lOutlierMeanK;
+	double m_dOutlierStdDevMultiplier;
 
 
 	BOOL m_bFreeze;
 public:
 	afx_msg void OnBnClickedSavePcd();
 	CCheckComboBox m_ctrlEdgeDetector;
-	afx_msg void OnBnClickedClearLog();
+//	afx_msg void OnBnClickedClearLog();
 	afx_msg void OnBnClickedGaussianSettings();
 	afx_msg void OnBnClickedCannySettings();
 	afx_msg void OnBnClickedGaussianEnable();
 	afx_msg void OnBnClickedCannyEnable();
+	afx_msg void OnBnClickedOutlierRemoval();
+	afx_msg void OnBnClickedOutlierSettings();
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

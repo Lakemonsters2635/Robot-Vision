@@ -15,10 +15,12 @@
 #include "CChooseCamera.h"
 #include "CGaussianSettings.h"
 #include "CCannySettings.h"
+#include "COutlierSettings.h"
 
 #include <librealsense2/rs_advanced_mode.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/types_c.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 //#ifdef _DEBUG
 //#define new DEBUG_NEW
@@ -160,11 +162,13 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_EN_CHANGE(IDC_CONE_ANGLE_MAX, &CFormBasedView::OnEnChange)
 	ON_BN_CLICKED(IDC_GO, &CFormBasedView::OnBnClickedGo)
 	ON_BN_CLICKED(IDC_SAVE_PCD, &CFormBasedView::OnBnClickedSavePcd)
-	ON_BN_CLICKED(IDC_CLEAR_LOG, &CFormBasedView::OnBnClickedClearLog)
+//	ON_BN_CLICKED(IDC_CLEAR_LOG, &CFormBasedView::OnBnClickedClearLog)
 	ON_BN_CLICKED(IDC_GAUSSIAN_SETTINGS, &CFormBasedView::OnBnClickedGaussianSettings)
 	ON_BN_CLICKED(IDC_CANNY_SETTINGS, &CFormBasedView::OnBnClickedCannySettings)
 	ON_BN_CLICKED(IDC_GAUSSIAN_ENABLE, &CFormBasedView::OnBnClickedGaussianEnable)
 	ON_BN_CLICKED(IDC_CANNY_ENABLE, &CFormBasedView::OnBnClickedCannyEnable)
+	ON_BN_CLICKED(IDC_OUTLIER_REMOVAL, &CFormBasedView::OnBnClickedOutlierRemoval)
+	ON_BN_CLICKED(IDC_OUTLIER_SETTINGS, &CFormBasedView::OnBnClickedOutlierSettings)
 END_MESSAGE_MAP()
 
 	// CFormBasedView construction/destruction
@@ -207,6 +211,9 @@ CFormBasedView::CFormBasedView()
 , m_dThreshhold2Canny(100)
 , m_nApertureCanny(3)
 , m_bL2GradientCanny(false)
+, m_bOutlierRemoval(FALSE)
+, m_lOutlierMeanK(50)
+, m_dOutlierStdDevMultiplier(1.0)
 {
 }
 
@@ -326,6 +333,7 @@ void CFormBasedView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDGE_DETECTOR, m_ctrlEdgeDetector);
 	DDX_Check(pDX, IDC_GAUSSIAN_ENABLE, m_bGaussianEnable);
 	DDX_Check(pDX, IDC_CANNY_ENABLE, m_bCannyEnable);
+	DDX_Check(pDX, IDC_OUTLIER_REMOVAL, m_bOutlierRemoval);
 }
 
 BOOL CFormBasedView::PreCreateWindow(CREATESTRUCT& cs)
@@ -537,6 +545,7 @@ void CFormBasedView::OnInitialUpdate()
 	OnBnClickedEnableVoxelFilter();
 	OnBnClickedGaussianEnable();
 	OnBnClickedCannyEnable();
+	OnBnClickedOutlierRemoval();
 
 	GetDocument()->SetModifiedFlag(FALSE);
 
@@ -791,6 +800,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	GetDlgItem(IDC_EDGE_DETECTOR)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
 
 	yPos -= rectLabel.Height() + 10 * SMALL_SPACING;
+	GetDlgItem(IDC_OUTLIER_REMOVAL)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
+	GetDlgItem(IDC_OUTLIER_SETTINGS)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
+
+	yPos -= rectLabel.Height() + 10 * SMALL_SPACING;
 	GetDlgItem(IDC_CANNY_ENABLE)->MoveWindow(ransacX, yPos, rectLabel.Width(), rectLabel.Height(), TRUE);
 	GetDlgItem(IDC_CANNY_SETTINGS)->MoveWindow(ransacX + rectLabel.Width() + SMALL_SPACING, yPos, valueWidth, valueHeight);
 
@@ -809,10 +822,6 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	CRect rectGo;
 	GetDlgItem(IDC_GO)->GetClientRect(&rectGo);
 	GetDlgItem(IDC_GO)->MoveWindow(CRect(CPoint(rectClient.right - nBorder - rectGo.Width(), rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
-
-	CRect rectClearLog;
-	GetDlgItem(IDC_CLEAR_LOG)->GetClientRect(&rectClearLog);
-	GetDlgItem(IDC_CLEAR_LOG)->MoveWindow(CRect(CPoint(rectLog.left, rectClient.bottom - nBorder - rectClearLog.Height()), rectClearLog.Size()));
 
 	CRect rectSavePCD;
 	GetDlgItem(IDC_SAVE_PCD)->GetClientRect(&rectSavePCD);
@@ -1028,6 +1037,10 @@ void CFormBasedView::OnEnChange()
 
 void CFormBasedView::OnBnClickedGo()
 {
+// Clear the log
+
+	m_ctrlLog.SetWindowText(_T(""));
+
 	using namespace cv;
 
 	UpdateData(TRUE);
@@ -1102,18 +1115,44 @@ void CFormBasedView::OnBnClickedGo()
 
 	pcl_ptr pcl_points;
 
-// If the edge detector is enabled
+	if (m_bOutlierRemoval)
+	{
+
+	}
+
+// Convert RealSense to PCL.  If Canny was done, only keep the white points.  If we're doing 3D edge
+// detection, keep all colors, otherwise apply our color filter.
+
+	auto color_points = points_to_pcl(points, color, m_bCannyEnable ? WhiteOnly : (m_dwEdgeDetector != 0 ? noFilter : m_colorFilter), 0.0, 1000.0);
+
+// If statistical outlier removal is enabled
+
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_points(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+	if (m_bOutlierRemoval)
+	{
+		// Create the filtering object
+		pcl::StatisticalOutlierRemoval<pcl::PointXYZRGBA> sor;
+		sor.setInputCloud(color_points);
+		sor.setMeanK(50);
+		sor.setStddevMulThresh(1.0);
+		sor.filter(*clean_points);
+	}
+	else
+	{
+		clean_points = color_points;
+	}
+
+	// If the edge detector is enabled
 
 	if (m_dwEdgeDetector != 0)
 	{
 // Convert RS to PCL, maintaining color and depth for the edge finder
 
-		auto color_points = points_to_pcl(points, color, noFilter, 0.0, 1000.0);
-
 // Find the edges and create a new cloud of them
 
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr edges(new pcl::PointCloud<pcl::PointXYZRGBA>);
-		FindEdges(color_points, m_dwEdgeDetector, 0.02, 50, edges);
+		FindEdges(clean_points, m_dwEdgeDetector, 0.02, 50, edges);
 
 // Now apply the color filter to the edges
 
@@ -1129,7 +1168,9 @@ void CFormBasedView::OnBnClickedGo()
 	{
 // With no edge filter, just convert RS to PCL while applying the color filter
 
-		pcl_points = points_to_pcl(points, color, m_bCannyEnable ? WhiteOnly : m_colorFilter);
+		pcl_ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl_points = cloud;
+		copyPointCloud(*clean_points, *pcl_points);
 	}
 
 	pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
@@ -1393,12 +1434,6 @@ void CFormBasedView::OnBnClickedSavePcd()
 }
 
 
-void CFormBasedView::OnBnClickedClearLog()
-{
-	m_ctrlLog.SetWindowText(_T(""));
-}
-
-
 void CFormBasedView::OnBnClickedGaussianSettings()
 {
 	CGaussianSettings dlg(m_sizeGaussian, m_dSigmaXGaussian, m_dSigmaYGaussian, m_nBorderTypeGaussian);
@@ -1449,4 +1484,29 @@ void CFormBasedView::OnBnClickedCannyEnable()
 	GetDlgItem(IDC_CANNY_SETTINGS)->EnableWindow(m_bCannyEnable);
 
 	GetDocument()->SetModifiedFlag(TRUE);
+}
+
+
+void CFormBasedView::OnBnClickedOutlierRemoval()
+{
+	UpdateData(TRUE);
+
+	GetDlgItem(IDC_OUTLIER_SETTINGS)->EnableWindow(m_bOutlierRemoval);
+
+	GetDocument()->SetModifiedFlag(TRUE);
+}
+
+
+void CFormBasedView::OnBnClickedOutlierSettings()
+{
+	COutlierSettings dlg(m_lOutlierMeanK, m_dOutlierStdDevMultiplier);
+
+	if (dlg.DoModal() == IDOK)
+	{
+		m_lOutlierMeanK = dlg.m_lMeanK;
+		m_dOutlierStdDevMultiplier = dlg.m_dStdDevMultiplier;
+
+		GetDocument()->SetModifiedFlag(TRUE);
+	}
+
 }

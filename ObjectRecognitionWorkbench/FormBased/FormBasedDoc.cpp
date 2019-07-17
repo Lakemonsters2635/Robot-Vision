@@ -59,7 +59,8 @@ BOOL CFormBasedDoc::OnNewDocument()
 //#define	CURRENT_REV	3		// Changed DepthMinValue and DepthMaxValue to float
 //#define	CURRENT_REV	4		// Added alignment mode
 //#define	CURRENT_REV	5		// Added edge detector
-#define		CURRENT_REV	6		// Added Gaussian Blur and Canny Edge Detection
+//#define	CURRENT_REV	6		// Added Gaussian Blur and Canny Edge Detection
+#define		CURRENT_REV	7		// Added Outlier Removal
 
 void CFormBasedDoc::Serialize(CArchive& ar)
 {
@@ -99,6 +100,10 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 		ar << pView->m_dThreshhold2Canny;
 		ar << pView->m_nApertureCanny;
 		ar << pView->m_bL2GradientCanny;
+		ar << pView->m_bOutlierRemoval;
+		ar << pView->m_lOutlierMeanK;
+		ar << pView->m_dOutlierStdDevMultiplier;
+
 	}
 	else
 	{
@@ -187,6 +192,18 @@ void CFormBasedDoc::Serialize(CArchive& ar)
 			pView->m_dThreshhold2Canny = 100;
 			pView->m_nApertureCanny = 3;
 			pView->m_bL2GradientCanny = false;
+		}
+		if (nRev >= 7)
+		{
+			ar >> pView->m_bOutlierRemoval;
+			ar >> pView->m_lOutlierMeanK;
+			ar >> pView->m_dOutlierStdDevMultiplier;
+		}
+		else
+		{
+			pView->m_bOutlierRemoval = FALSE;
+			pView->m_lOutlierMeanK = 50;
+			pView->m_dOutlierStdDevMultiplier = 1.0;
 		}
 		pView->UpdateData(FALSE);
 	}
