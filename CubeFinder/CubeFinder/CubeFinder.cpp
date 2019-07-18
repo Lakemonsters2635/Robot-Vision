@@ -73,7 +73,7 @@ public:
 	int	rightB;
 };
 
-ColorFilter colorFilter(21, 48, 107, 255, 146, 255, 0, 255, 0, 255, 0, 255);
+ColorFilter colorFilter(21, 48, 63, 255, 103, 255, 0, 255, 0, 255, 0, 255);
 
 // Struct for managing rotation of pointcloud view
 struct state {
@@ -185,10 +185,10 @@ inline bool Filter(unsigned char pixelColor, const int left, const int right)
 	}
 }
 
-pcl_color_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, ColorFilter& colorFilter)
+pcl_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& color, ColorFilter& colorFilter)
 {
 	std::tuple<uint8_t, uint8_t, uint8_t> RGB_Color;
-	pcl_color_ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+	pcl_ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 	auto sp = points.get_profile().as<rs2::video_stream_profile>();
 	cloud->width = sp.width();
@@ -217,10 +217,6 @@ pcl_color_ptr points_to_pcl(const rs2::points& points, const rs2::video_frame& c
 		unsigned short R = std::get<0>(RGB_Color); // Reference tuple<2>
 		unsigned short G = std::get<1>(RGB_Color); // Reference tuple<1>
 		unsigned short B = std::get<2>(RGB_Color); // Reference tuple<0>
-
-		pt.r = R;
-		pt.g = G;
-		pt.b = B;
 
 		unsigned short H, S, V;
 
@@ -303,105 +299,121 @@ int main()
 	// register callbacks to allow manipulation of the pointcloud
 	register_glfw_callbacks(app, app_state);
 
-	auto depth = frames.get_depth_frame();
-	auto color = frames.get_color_frame();
-
-	pc.map_to(color);
-
-	// Generate the pointcloud and texture mappings
-	points = pc.calculate(depth);
-
-	auto color_points = points_to_pcl(points, color, colorFilter);
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_points(new pcl::PointCloud<pcl::PointXYZRGBA>);
-
-	pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
-
-	std::cerr << "PointCloud before filtering: " << color_points->width * color_points->height << " data points." << std::endl;
-
-	// Statistical Outlier Removal
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGBA> sor;
-	sor.setInputCloud(color_points);
-	sor.setMeanK(SOR_MEAN_K);
-	sor.setStddevMulThresh(SOR_STD_DEV_MULT);
-	sor.filter(*clean_points);
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr mono_points(new pcl::PointCloud<pcl::PointXYZ>);
-	copyPointCloud(*clean_points, *mono_points);
-
-	//========================================
-	// Filter PointCloud (PassThrough Method)
-	//========================================
-	pcl::PointCloud<pcl::PointXYZ>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-	pcl::PassThrough<pcl::PointXYZ> Cloud_Filter; // Create the filtering object
-	Cloud_Filter.setInputCloud(mono_points);           // Input generated cloud to filter
-	Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
-	Cloud_Filter.setFilterLimits(DEPTH_FILTER_MIN, DEPTH_FILTER_MAX);      // Set accepted interval values
-	Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
-	pcl::toPCLPointCloud2(*newCloud, *cloud_blob);
-	std::cerr << "PointCloud after depth filtering: " << newCloud->width * newCloud->height << " data points." << std::endl;
-
-	// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
-	pcl::VoxelGrid<pcl::PCLPointCloud2> vog;
-	vog.setInputCloud(cloud_blob);
-	vog.setLeafSize(VOXEL_DENSITY, VOXEL_DENSITY, VOXEL_DENSITY);
-	vog.filter(*cloud_filtered_blob);
-
-	// Convert to the templated PointCloud
-	pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
-
-	std::cerr << "PointCloud after volume filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
-
-
-	layers.push_back(new Feature(cloud_filtered));
-
-	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
-	pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-	// Create the segmentation object
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
-	// Optional
-	seg.setOptimizeCoefficients(true);
-	// Mandatory
-	seg.setModelType(MODEL);
-	seg.setMethodType(pcl::SAC_RANSAC);
-	seg.setMaxIterations(1000);
-	seg.setDistanceThreshold(DISTANCE_THRESHHOLD);
-	Eigen::Vector3f axis(0.0, 1.0, 0.0);
-	seg.setAxis(axis);
-	seg.setEpsAngle(0.0);
-
-
-	std::vector<Eigen::Vector4f> Models;
-
-	// Create the filtering object
-	pcl::ExtractIndices<pcl::PointXYZ> extract;
-
-	int i = 0, nr_points = (int)cloud_filtered->points.size();
-	// While 30% of the original cloud is still there
-	while (cloud_filtered->points.size() > 0.3 * nr_points)
+	while (app) // Application still alive?
 	{
-		// Segment the largest planar component from the remaining cloud
-		seg.setInputCloud(cloud_filtered);
-		seg.segment(*inliers, *coefficients);
-		if (inliers->indices.size() == 0)
+		frames = pipe.wait_for_frames();
+
+		auto depth = frames.get_depth_frame();
+		auto color = frames.get_color_frame();
+
+		pc.map_to(color);
+
+		// Generate the pointcloud and texture mappings
+		points = pc.calculate(depth);
+
+		auto pcl_points = points_to_pcl(points, color, colorFilter);
+
+		pcl::PassThrough<pcl::PointXYZ> Cloud_Filter; // Create the filtering object
+		Cloud_Filter.setInputCloud(pcl_points);           // Input generated cloud to filter
+		Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
+	//	Cloud_Filter.setFilterLimits(0.0, 1000.0);      // Set accepted interval values
+		Cloud_Filter.setFilterLimits(DEPTH_FILTER_MIN, DEPTH_FILTER_MAX);      // Set accepted interval values
+		Cloud_Filter.filter(*pcl_points);              // Filtered Cloud Outputted	pcl::PointCloud<pcl::PointXYZ>::Ptr mono_points(new pcl::PointCloud<pcl::PointXYZ>);
+
+		pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
+
+		std::cerr << "PointCloud before filtering: " << pcl_points->width * pcl_points->height << " data points." << std::endl;
+
+		pcl_points->width *= pcl_points->height;
+		pcl_points->height = 1;
+
+		// Statistical Outlier Removal
+		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+		sor.setInputCloud(pcl_points);
+		sor.setMeanK(SOR_MEAN_K);
+		sor.setStddevMulThresh(SOR_STD_DEV_MULT);
+		sor.filter(*pcl_points);
+
+		//	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+			////========================================
+			//// Filter PointCloud (PassThrough Method)
+			////========================================
+			//pcl::PointCloud<pcl::PointXYZ>::Ptr newCloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+			//pcl::PassThrough<pcl::PointXYZ> Cloud_Filter; // Create the filtering object
+			//Cloud_Filter.setInputCloud(pcl_points);           // Input generated cloud to filter
+			//Cloud_Filter.setFilterFieldName("z");        // Set field name to Z-coordinate
+			//Cloud_Filter.setFilterLimits(DEPTH_FILTER_MIN, DEPTH_FILTER_MAX);      // Set accepted interval values
+			//Cloud_Filter.filter(*newCloud);              // Filtered Cloud Outputted
+
+
+		pcl::toPCLPointCloud2(*pcl_points, *cloud_blob);
+		std::cerr << "PointCloud after depth filtering: " << cloud_blob->width * cloud_blob->height << " data points." << std::endl;
+
+		// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
+		pcl::VoxelGrid<pcl::PCLPointCloud2> vog;
+		vog.setInputCloud(cloud_blob);
+		vog.setLeafSize(VOXEL_DENSITY, VOXEL_DENSITY, VOXEL_DENSITY);
+		vog.filter(*cloud_filtered_blob);
+
+		// Convert to the templated PointCloud
+		pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
+
+		std::cerr << "PointCloud after volume filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
+
+
+		layers.push_back(new Feature(cloud_filtered));
+
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+		pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+		// Create the segmentation object
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+		// Optional
+		seg.setOptimizeCoefficients(true);
+		// Mandatory
+		seg.setModelType(MODEL);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setMaxIterations(1000);
+		seg.setDistanceThreshold(DISTANCE_THRESHHOLD);
+		Eigen::Vector3f axis(0.0, 1.0, 0.0);
+		seg.setAxis(axis);
+		seg.setEpsAngle(0.0);
+
+
+		std::vector<Eigen::Vector4f> Models;
+
+		// Create the filtering object
+		pcl::ExtractIndices<pcl::PointXYZ> extract;
+
+		layers.clear();
+
+		int i = 0, nr_points = (int)cloud_filtered->points.size();
+		// While 30% of the original cloud is still there
+		while (cloud_filtered->points.size() > 0.3 * nr_points)
 		{
-			std::cerr << "Could not estimate a " MODEL_TEXT " model for the given dataset." << std::endl;
-			break;
-		}
+			// Segment the largest planar component from the remaining cloud
+			seg.setInputCloud(cloud_filtered);
+			seg.segment(*inliers, *coefficients);
+			if (inliers->indices.size() == 0)
+			{
+				std::cerr << "Could not estimate a " MODEL_TEXT " model for the given dataset." << std::endl;
+				break;
+			}
 
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
 
-		// Extract the inliers
-		extract.setInputCloud(cloud_filtered);
-		extract.setIndices(inliers);
-		extract.setNegative(false);
-		extract.filter(*cloud_p);
+			// Extract the inliers
+			extract.setInputCloud(cloud_filtered);
+			extract.setIndices(inliers);
+			extract.setNegative(false);
+			extract.filter(*cloud_p);
 
-		//std::stringstream ss;
-		//ss << "table_scene_lms400_plane_" << i << ".pcd";
-		//writer.write<pcl::PointXYZ>(ss.str(), *cloud_p, false);
+			//std::stringstream ss;
+			//ss << "table_scene_lms400_plane_" << i << ".pcd";
+			//writer.write<pcl::PointXYZ>(ss.str(), *cloud_p, false);
 
 			{
 				Eigen::Vector4f model(coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]);
@@ -416,34 +428,34 @@ int main()
 			}
 
 
-		//ShowCloud(cloud_p);
+			//ShowCloud(cloud_p);
 
-		// Create the filtering object
-		extract.setNegative(true);
-		extract.filter(*cloud_f);
-		cloud_filtered.swap(cloud_f);
-		i++;
-		if (layers.size() >= (N_COLORS - 1))
-			break;
-	}
-
-	for (int i=0; i<Models.size(); i++)
-	{
-		Eigen::Vector4f& model1 = Models[i];
-		Eigen::Vector3f N1(model1[0], model1[1], model1[2]);
-
-		for (auto j = i + 1; j < Models.size(); j++)
-		{
-			Eigen::Vector4f& model2 = Models[j];
-			Eigen::Vector3f N2(model2[0], model2[1], model2[2]);
-			Eigen::Vector3f U = N1.cross(N2);
-			std::cerr << i+1 << " x " << j+1 << " = (" << U[0] << ", " << U[1] << ", " << U[2] <<")" << std::endl;
+			// Create the filtering object
+			extract.setNegative(true);
+			extract.filter(*cloud_f);
+			cloud_filtered.swap(cloud_f);
+			i++;
+			if (layers.size() >= (N_COLORS - 1))
+				break;
 		}
-//		std::cerr << model[0] << std::endl << model[1] << std::endl << model[2] << std::endl << model[3] << std::endl << std::endl;
-	}
 
-	while (app) // Application still alive?
-	{
+		for (int i = 0; i < Models.size(); i++)
+		{
+			Eigen::Vector4f& model1 = Models[i];
+			Eigen::Vector3f N1(model1[0], model1[1], model1[2]);
+
+			for (auto j = i + 1; j < Models.size(); j++)
+			{
+				Eigen::Vector4f& model2 = Models[j];
+				Eigen::Vector3f N2(model2[0], model2[1], model2[2]);
+				Eigen::Vector3f U = N1.cross(N2);
+				std::cerr << i + 1 << " x " << j + 1 << " = (" << U[0] << ", " << U[1] << ", " << U[2] << ")" << std::endl;
+			}
+			//		std::cerr << model[0] << std::endl << model[1] << std::endl << model[2] << std::endl << model[3] << std::endl << std::endl;
+		}
+
+		//while (app) // Application still alive?
+		//{
 		draw_pointcloud(app, app_state, layers);
 	}
 
