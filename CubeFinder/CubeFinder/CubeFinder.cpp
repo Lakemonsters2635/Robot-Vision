@@ -18,6 +18,10 @@
 #include <pcl/ModelCoefficients.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 
+//#define ONE_SHOT
+
+bool s_bVerbose = true;
+
 #define		MODEL	pcl::SACMODEL_PARALLEL_PLANE
 #define	MODEL_TEXT	"planar"
 #define	VOXEL_DENSITY	0.005
@@ -77,9 +81,10 @@ ColorFilter colorFilter(21, 48, 63, 255, 103, 255, 0, 255, 0, 255, 0, 255);
 
 // Struct for managing rotation of pointcloud view
 struct state {
-	state() : yaw(0.0), pitch(0.0), last_x(0.0), last_y(0.0),
-		ml(false), offset_x(0.0f), offset_y(0.0f), mask(-1), info(false) {}
-	double yaw, pitch, last_x, last_y; bool ml; float offset_x, offset_y;
+	state() : yaw(0.0), pitch(0.0), panx(0.0), pany(0.0), last_x(0.0), last_y(0.0),
+		ml(false), mm(false), /*offset_x(0.0f), offset_y(0.0f), */offset_z(0.0f), mask(-1), info(false) {}
+	double yaw, pitch, panx, pany, last_x, last_y; bool ml; bool mm; float offset_z;
+//	double yaw, pitch, panx, pany, last_x, last_y; bool ml; bool mm; float offset_x, offset_y;
 	unsigned long long mask;
 	bool info;
 	int coef_sel;
@@ -298,9 +303,10 @@ int main()
 	state app_state;
 	// register callbacks to allow manipulation of the pointcloud
 	register_glfw_callbacks(app, app_state);
-
+#ifndef ONE_SHOT
 	while (app) // Application still alive?
 	{
+#endif
 		frames = pipe.wait_for_frames();
 
 		auto depth = frames.get_depth_frame();
@@ -323,7 +329,8 @@ int main()
 		pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2), cloud_filtered_blob(new pcl::PCLPointCloud2);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
 
-		std::cerr << "PointCloud before filtering: " << pcl_points->width * pcl_points->height << " data points." << std::endl;
+		if (s_bVerbose)
+			std::cerr << "PointCloud before filtering: " << pcl_points->width * pcl_points->height << " data points." << std::endl;
 
 		pcl_points->width *= pcl_points->height;
 		pcl_points->height = 1;
@@ -350,7 +357,9 @@ int main()
 
 
 		pcl::toPCLPointCloud2(*pcl_points, *cloud_blob);
-		std::cerr << "PointCloud after depth filtering: " << cloud_blob->width * cloud_blob->height << " data points." << std::endl;
+
+		if (s_bVerbose)
+			std::cerr << "PointCloud after depth filtering: " << cloud_blob->width * cloud_blob->height << " data points." << std::endl;
 
 		// Create the filtering object: downsample the dataset using a leaf size of VOXEL_DENSITY
 		pcl::VoxelGrid<pcl::PCLPointCloud2> vog;
@@ -361,8 +370,12 @@ int main()
 		// Convert to the templated PointCloud
 		pcl::fromPCLPointCloud2(*cloud_filtered_blob, *cloud_filtered);
 
-		std::cerr << "PointCloud after volume filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
+		if (s_bVerbose)
+			std::cerr << "PointCloud after volume filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
 
+#ifndef ONE_SHOT
+		layers.clear();
+#endif
 
 		layers.push_back(new Feature(cloud_filtered));
 
@@ -386,8 +399,6 @@ int main()
 
 		// Create the filtering object
 		pcl::ExtractIndices<pcl::PointXYZ> extract;
-
-		layers.clear();
 
 		int i = 0, nr_points = (int)cloud_filtered->points.size();
 		// While 30% of the original cloud is still there
@@ -419,8 +430,11 @@ int main()
 				Eigen::Vector4f model(coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]);
 				Models.insert(Models.end(), model);
 
-				std::cerr << "PointCloud representing the " << MODEL_TEXT << " component: " << cloud_p->width * cloud_p->height << " data points." << std::endl;
-				std::cerr << "Model Coefficients: " << *coefficients << std::endl;
+				if (s_bVerbose)
+				{
+					std::cerr << "PointCloud representing the " << MODEL_TEXT << " component: " << cloud_p->width * cloud_p->height << " data points." << std::endl;
+					std::cerr << "Model Coefficients: " << *coefficients << std::endl;
+				}
 				feature_ptr p = new Feature(cloud_p);
 				pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients(*coefficients));
 				p->coefficients = c;
@@ -435,7 +449,7 @@ int main()
 			extract.filter(*cloud_f);
 			cloud_filtered.swap(cloud_f);
 			i++;
-			if (layers.size() >= (N_COLORS - 1))
+			if (layers.size() >= (N_COLORS - 2))
 				break;
 		}
 
@@ -449,191 +463,250 @@ int main()
 				Eigen::Vector4f& model2 = Models[j];
 				Eigen::Vector3f N2(model2[0], model2[1], model2[2]);
 				Eigen::Vector3f U = N1.cross(N2);
-				std::cerr << i + 1 << " x " << j + 1 << " = (" << U[0] << ", " << U[1] << ", " << U[2] << ")" << std::endl;
+				double dMag = sqrt(U[0] * U[0] + U[1] * U[1] + U[2] * U[2]);
+				if (dMag >= 0.01)
+				{
+					U = U / sqrt(U[0] * U[0] + U[1] * U[1] + U[2] * U[2]);
+					double Theta = acos(N1.dot(N2)) * 180 / 3.14159265358979323843383;
+					Eigen::Vector3f P;
+					P[0] = model1[2] * model2[3] - model2[2] * model1[3];
+					P[1] = 0.0;
+					P[2] = model1[3] * model2[0] - model2[3] * model1[0];
+					double d = model2[0] * model1[2] - model1[0] * model2[2];
+					P /= d;
+
+					//P[0] = model1[2] * model2[3] - model2[2] * model1[3];
+					//P[1] = 0.0;
+					//P[2] = model1[3] * model2[0] - model2[3] * model1[0];
+					if (s_bVerbose)
+					{
+						std::cerr << i + 1 << " x " << j + 1 << " = (" << U[0] << ", " << U[1] << ", " << U[2] << ")  " << Theta <<
+							"  (" << P[0] << ", " << P[1] << ", " << P[2] << ")" << std::endl;
+						std::cerr << "P(s) = (" << P[0] << ", " << P[1] << ", " << P[2] << ") + s * (" << U[0] << ", " << U[1] << ", " << U[2] << ")" << std::endl;
+					}
+
+					// Draw the intersection of 1x2 only
+
+					if (i == 0 && j == 1)
+					{
+						pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>);
+						feature_ptr p = new Feature(cloud_line);
+						pcl::ModelCoefficients::Ptr c(new pcl::ModelCoefficients());
+						p->coefficients = c;
+						layers.push_back(p);
+
+						for (double s = -0.5; s < 0.5; s += 0.01)
+						{
+							Eigen::Vector3f L;
+							L = P + s * U;
+							pcl::PointXYZ pt;
+							pt.x = -L[0];
+							pt.y = L[1];
+							pt.z = -L[2];
+
+							cloud_line->insert(cloud_line->end(), 1, pt);
+						}
+					}
+				}
 			}
-			//		std::cerr << model[0] << std::endl << model[1] << std::endl << model[2] << std::endl << model[3] << std::endl << std::endl;
 		}
 
-		//while (app) // Application still alive?
-		//{
-		draw_pointcloud(app, app_state, layers);
+#ifdef ONE_SHOT
+		while (app) // Application still alive?
+		{
+#endif
+			draw_pointcloud(app, app_state, layers);
+		}
+
+		return EXIT_SUCCESS;
+}
+	//catch (const rs2::error & e)
+	//{
+	//	std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
+	//	return EXIT_FAILURE;
+	//}
+	//catch (const std::exception & e)
+	//{
+	//	std::cerr << e.what() << std::endl;
+	//	return EXIT_FAILURE;
+	//}
+
+	double
+		Mod180(double d)
+	{
+		return d > 180.0 ? d - 360 : (d < -180.0 ? d + 360 : d);
 	}
 
-	return EXIT_SUCCESS;
-}
-//catch (const rs2::error & e)
-//{
-//	std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
-//	return EXIT_FAILURE;
-//}
-//catch (const std::exception & e)
-//{
-//	std::cerr << e.what() << std::endl;
-//	return EXIT_FAILURE;
-//}
-
-double
-Mod180(double d)
-{
-	return d > 180.0 ? d - 360 : (d < -180.0 ? d + 360 : d);
-}
-
-// Registers the state variable and callbacks to allow mouse control of the pointcloud
-void register_glfw_callbacks(window& app, state& app_state)
-{
-	app.on_left_mouse = [&](bool pressed)
+	// Registers the state variable and callbacks to allow mouse control of the pointcloud
+	void register_glfw_callbacks(window& app, state& app_state)
 	{
-		app_state.ml = pressed;
-	};
-
-	app.on_mouse_scroll = [&](double xoffset, double yoffset)
-	{
-		app_state.offset_x += static_cast<float>(xoffset);
-		app_state.offset_y += static_cast<float>(yoffset);
-	};
-
-	app.on_mouse_move = [&](double x, double y)
-	{
-		if (app_state.ml)
+		app.on_left_mouse = [&](bool pressed)
 		{
-			app_state.yaw -= (x - app_state.last_x);
-			app_state.yaw = Mod180(app_state.yaw);
-			app_state.pitch += (y - app_state.last_y);
-			app_state.pitch = Mod180(app_state.pitch);
-		}
-		app_state.last_x = x;
-		app_state.last_y = y;
-	};
+			app_state.ml = pressed;
+		};
 
-	app.on_key_release = [&](int key)
-	{
-		int which = -1;
-		if (key > 255 || key < 0)
-			return;
-
-		switch (key)
+		app.on_middle_mouse = [&](bool pressed)
 		{
-		case ' ':
-			app_state.yaw = app_state.pitch = 0; app_state.offset_x = app_state.offset_y = 0.0;
-			break;
+			app_state.mm = pressed;
+		};
 
-		case '/':
-			app_state.info = true;
-			break;
+		app.on_mouse_scroll = [&](double xoffset, double yoffset)
+		{
+			app_state.offset_z += static_cast<float>(yoffset);
+			//app_state.offset_x += static_cast<float>(xoffset);
+			//app_state.offset_y += static_cast<float>(yoffset);
+		};
 
-		default:
-			if (isdigit(key))
+		app.on_mouse_move = [&](double x, double y)
+		{
+			if (app_state.ml)
 			{
-				which = (key - '0');
+				app_state.yaw -= (x - app_state.last_x);
+				app_state.yaw = Mod180(app_state.yaw);
+				app_state.pitch += (y - app_state.last_y);
+				app_state.pitch = Mod180(app_state.pitch);
 			}
-			else if (isupper(key))
+			else if (app_state.mm)
 			{
-				if (key == 'Z')
+				app_state.panx += (x - app_state.last_x);
+				app_state.pany += (y - app_state.last_y);
+			}
+			app_state.last_x = x;
+			app_state.last_y = y;
+		};
+
+		app.on_key_release = [&](int key)
+		{
+			int which = -1;
+			if (key > 255 || key < 0)
+				return;
+
+			switch (key)
+			{
+			case ' ':
+//				app_state.yaw = app_state.pitch = 0; app_state.offset_x = app_state.offset_y = 0.0;
+				app_state.yaw = app_state.pitch = 0; app_state.offset_z = 0; app_state.panx = app_state.pany = 0;
+				break;
+
+			case '/':
+				app_state.info = true;
+				break;
+
+			default:
+				if (isdigit(key))
 				{
-					if (app_state.mask != 0)
-						app_state.mask = 0;
+					which = (key - '0');
+				}
+				else if (isupper(key))
+				{
+					if (key == 'Z')
+					{
+						if (app_state.mask != 0)
+							app_state.mask = 0;
+						else
+							app_state.mask = -1;
+					}
 					else
-						app_state.mask = -1;
+					{
+						which = (10 + key - 'A');
+					}
+				}
+			}
+			if (which != -1)
+			{
+				if (app_state.info)
+				{
+					app_state.coef_sel = which;
+					app_state.info = false;
 				}
 				else
 				{
-					which = (10 + key - 'A');
+					unsigned long long bit = 1LL << which;
+					app_state.mask ^= bit;
 				}
 			}
-		}
-		if (which != -1)
-		{
-			if (app_state.info)
-			{
-				app_state.coef_sel = which;
-				app_state.info = false;
-			}
-			else
-			{
-				unsigned long long bit = 1LL << which;
-				app_state.mask ^= bit;
-			}
-		}
-	};
-}
-
-// Handles all the OpenGL calls needed to display the point cloud
-void draw_pointcloud(window& app, state& app_state, const std::vector<feature_ptr>& features)
-{
-	// OpenGL commands that prep screen for the pointcloud
-	glPopMatrix();
-	glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-	float width = app.width(), height = app.height();
-
-	//	glClearColor(153.f / 255, 153.f / 255, 153.f / 255, 1);
-	glClearColor(0.0, 0.0, 0.0, 1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	gluPerspective(60, width / height, 0.01f, 10.0f);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
-
-	glTranslatef(0, 0, +0.5f + app_state.offset_y*0.05f);
-	glRotated(app_state.pitch, 1, 0, 0);
-	glRotated(app_state.yaw, 0, 1, 0);
-	glTranslatef(0, 0, -0.5f);
-
-	glPointSize(width / 640);
-	glEnable(GL_TEXTURE_2D);
-
-	int color = 0;
-
-	for (auto&& f : features)
-	{
-		if (app_state.coef_sel != -1 && color == app_state.coef_sel)
-		{
-			if (f->coefficients)
-			{
-				std::cerr << "Model Coefficients: " << *f->coefficients << std::endl;
-				double Nx = f->coefficients->values[0];
-				double Nz = f->coefficients->values[2];
-				float theta = acos(Nz / sqrt(Nx*Nx + Nz * Nz));
-				std::cerr << "Error Angle: " << theta * 180 / 3.1415926 << " degrees" << std::endl;
-			}
-
-			app_state.coef_sel = -1;
-		}
-
-		auto pc = f->cloud;
-		if (app_state.mask & (1LL << color))
-		{
-			//		auto c = colors[(color++) % (sizeof(colors) / sizeof(float3))];
-			auto c = colorsb[(color) % (sizeof(colors) / sizeof(byte3))];
-
-			glBegin(GL_POINTS);
-			glColor3f(c.r / 255.0, c.g / 255.0, c.b / 255.0);
-
-			/* this segment actually prints the pointcloud */
-			for (int i = 0; i < pc->points.size(); i++)
-			{
-				auto&& p = pc->points[i];
-				if (p.z)
-				{
-					// upload the point and texture coordinates only for points we have depth data for
-					glVertex3f(p.x, p.y, p.z);
-				}
-			}
-
-			glEnd();
-		}
-		color++;
+		};
 	}
 
-	// OpenGL cleanup
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glPopAttrib();
-	glPushMatrix();
-}
+	// Handles all the OpenGL calls needed to display the point cloud
+	void draw_pointcloud(window& app, state& app_state, const std::vector<feature_ptr>& features)
+	{
+		// OpenGL commands that prep screen for the pointcloud
+		glPopMatrix();
+		glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+		float width = app.width(), height = app.height();
+
+		//	glClearColor(153.f / 255, 153.f / 255, 153.f / 255, 1);
+		glClearColor(0.0, 0.0, 0.0, 1);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		gluPerspective(60, width / height, 0.01f, 10.0f);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
+
+		glTranslatef(-0.5f, -0.5f, +0.5f + app_state.offset_z*0.05f);
+//		glTranslatef(0, 0, +0.5f + app_state.offset_y*0.05f);
+		glRotated(app_state.pitch, 1, 0, 0);
+		glRotated(app_state.yaw, 0, 1, 0);
+		glTranslatef(+0.5f + app_state.panx*0.05f, +0.5f + app_state.pany*0.05f, -0.5f);
+//		glTranslatef(0, 0, -0.5f);
+
+		glPointSize(width / 640);
+		glEnable(GL_TEXTURE_2D);
+
+		int color = 0;
+
+		for (auto&& f : features)
+		{
+			if (app_state.coef_sel != -1 && color == app_state.coef_sel)
+			{
+				if (f->coefficients)
+				{
+					std::cerr << "Model Coefficients: " << *f->coefficients << std::endl;
+					double Nx = f->coefficients->values[0];
+					double Nz = f->coefficients->values[2];
+					float theta = acos(Nz / sqrt(Nx*Nx + Nz * Nz));
+					std::cerr << "Error Angle: " << theta * 180 / 3.1415926 << " degrees" << std::endl;
+				}
+
+				app_state.coef_sel = -1;
+			}
+
+			auto pc = f->cloud;
+			if (app_state.mask & (1LL << color))
+			{
+				//		auto c = colors[(color++) % (sizeof(colors) / sizeof(float3))];
+				auto c = colorsb[(color) % (sizeof(colors) / sizeof(byte3))];
+
+				glBegin(GL_POINTS);
+				glColor3f(c.r / 255.0, c.g / 255.0, c.b / 255.0);
+
+				/* this segment actually prints the pointcloud */
+				for (int i = 0; i < pc->points.size(); i++)
+				{
+					auto&& p = pc->points[i];
+					if (p.z)
+					{
+						// upload the point and texture coordinates only for points we have depth data for
+						glVertex3f(p.x, p.y, p.z);
+					}
+				}
+
+				glEnd();
+			}
+			color++;
+		}
+
+		// OpenGL cleanup
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glPopAttrib();
+		glPushMatrix();
+	}
 
