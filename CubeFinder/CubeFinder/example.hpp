@@ -477,7 +477,9 @@ class window
 {
 public:
     std::function<void(bool)>           on_left_mouse = [](bool) {};
-    std::function<void(double, double)> on_mouse_scroll = [](double, double) {};
+	std::function<void(bool)>           on_middle_mouse = [](bool) {};
+	std::function<void(bool)>           on_right_mouse = [](bool) {};
+	std::function<void(double, double)> on_mouse_scroll = [](double, double) {};
     std::function<void(double, double)> on_mouse_move = [](double, double) {};
     std::function<void(int)>            on_key_release = [](int) {};
 
