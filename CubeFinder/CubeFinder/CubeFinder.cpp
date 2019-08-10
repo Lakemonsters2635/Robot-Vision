@@ -469,15 +469,12 @@ int main()
 					U = U / sqrt(U[0] * U[0] + U[1] * U[1] + U[2] * U[2]);
 					double Theta = acos(N1.dot(N2)) * 180 / 3.14159265358979323843383;
 					Eigen::Vector3f P;
-					P[0] = model1[2] * model2[3] - model2[2] * model1[3];
+					P[0] = (model1[2] * model2[3] - model2[2] * model1[3]);
 					P[1] = 0.0;
-					P[2] = model1[3] * model2[0] - model2[3] * model1[0];
-					double d = model2[0] * model1[2] - model1[0] * model2[2];
+					P[2] = (model1[3] * model2[0] - model2[3] * model1[0]);
+					double d = model1[0] * model2[2] - model2[0] * model1[2];
 					P /= d;
 
-					//P[0] = model1[2] * model2[3] - model2[2] * model1[3];
-					//P[1] = 0.0;
-					//P[2] = model1[3] * model2[0] - model2[3] * model1[0];
 					if (s_bVerbose)
 					{
 						std::cerr << i + 1 << " x " << j + 1 << " = (" << U[0] << ", " << U[1] << ", " << U[2] << ")  " << Theta <<
@@ -500,12 +497,24 @@ int main()
 							Eigen::Vector3f L;
 							L = P + s * U;
 							pcl::PointXYZ pt;
-							pt.x = -L[0];
+							pt.x = L[0];
 							pt.y = L[1];
-							pt.z = -L[2];
+							pt.z = L[2];
 
 							cloud_line->insert(cloud_line->end(), 1, pt);
 						}
+// Distance from an arbitrary point (p) to a line (L = P + s*U) is given by: | (P-p) - ((P-p).U)U |  (where . is dot product)
+// In our case, p is the origin and is thus (0,0,0).  Therefore D = | P - (P.U)U |
+
+						double dist = (P - (P.dot(U)*U)).norm();
+						std::cerr << "Distance = " << dist << "m  or  " << dist / 0.0254 << "in" << std::endl;
+
+// Now for the angle.  This is simply the angle between P and the z-axis.
+// Compute sin(theta) = Lx / sqrt(Lx^2 + Lz^2).  Too long to explain here - see PPT.						
+
+						Eigen::Vector3f L = P/* + (-P[1] / U[1])*U*/;
+						double theta = asin(L[0] / sqrt(L[0]*L[0] + L[2]*L[2]));
+						std::cerr << "Angle = " << theta << "  or  " << theta * 180.0 / 3.14159265358 << "deg" << std::endl;
 					}
 				}
 			}
