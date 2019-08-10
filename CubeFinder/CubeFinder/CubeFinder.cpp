@@ -482,9 +482,10 @@ int main()
 						std::cerr << "P(s) = (" << P[0] << ", " << P[1] << ", " << P[2] << ") + s * (" << U[0] << ", " << U[1] << ", " << U[2] << ")" << std::endl;
 					}
 
-					// Draw the intersection of 1x2 only
+					// If two planes meet at 90 degrees, assume they are part of a cube.
 
-					if (i == 0 && j == 1)
+					//if (i == 0 && j == 1)
+					if (fabs(fabs(Theta)-90) < 3.0)
 					{
 						pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>);
 						feature_ptr p = new Feature(cloud_line);
@@ -510,10 +511,9 @@ int main()
 						std::cerr << "Distance = " << dist << "m  or  " << dist / 0.0254 << "in" << std::endl;
 
 // Now for the angle.  This is simply the angle between P and the z-axis.
-// Compute sin(theta) = Lx / sqrt(Lx^2 + Lz^2).  Too long to explain here - see PPT.						
+// Compute sin(theta) = Px / sqrt(Px^2 + Pz^2).  Too long to explain here - see PPT.						
 
-						Eigen::Vector3f L = P/* + (-P[1] / U[1])*U*/;
-						double theta = asin(L[0] / sqrt(L[0]*L[0] + L[2]*L[2]));
+						double theta = asin(P[0] / sqrt(P[0]*P[0] + P[2]*P[2]));
 						std::cerr << "Angle = " << theta << "  or  " << theta * 180.0 / 3.14159265358 << "deg" << std::endl;
 					}
 				}
