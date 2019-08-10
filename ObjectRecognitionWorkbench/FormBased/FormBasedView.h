@@ -207,6 +207,7 @@ public:
 	afx_msg void OnBnClickedCannyEnable();
 	afx_msg void OnBnClickedOutlierRemoval();
 	afx_msg void OnBnClickedOutlierSettings();
+	afx_msg void OnBnClickedClear();
 };
 
 #ifndef _DEBUG  // debug version in FormBasedView.cpp

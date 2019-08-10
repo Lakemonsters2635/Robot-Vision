@@ -115,6 +115,7 @@
 #define IDC_MEAN_K                      1096
 #define IDC_APERTURE                    1097
 #define IDC_STD                         1097
+#define IDC_CLEAR                       1098
 
 // Next default values for new objects
 // 
@@ -122,7 +123,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1097
+#define _APS_NEXT_CONTROL_VALUE         1099
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

@@ -169,6 +169,7 @@ BEGIN_MESSAGE_MAP(CFormBasedView, CFormView)
 	ON_BN_CLICKED(IDC_CANNY_ENABLE, &CFormBasedView::OnBnClickedCannyEnable)
 	ON_BN_CLICKED(IDC_OUTLIER_REMOVAL, &CFormBasedView::OnBnClickedOutlierRemoval)
 	ON_BN_CLICKED(IDC_OUTLIER_SETTINGS, &CFormBasedView::OnBnClickedOutlierSettings)
+	ON_BN_CLICKED(IDC_CLEAR, &CFormBasedView::OnBnClickedClear)
 END_MESSAGE_MAP()
 
 	// CFormBasedView construction/destruction
@@ -822,6 +823,10 @@ void CFormBasedView::OnSize(UINT nType, int cx, int cy)
 	CRect rectGo;
 	GetDlgItem(IDC_GO)->GetClientRect(&rectGo);
 	GetDlgItem(IDC_GO)->MoveWindow(CRect(CPoint(rectClient.right - nBorder - rectGo.Width(), rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
+
+	CRect rectClear;
+	GetDlgItem(IDC_CLEAR)->GetClientRect(&rectClear);
+	GetDlgItem(IDC_CLEAR)->MoveWindow(CRect(CPoint(rectLog.left, rectClient.bottom - nBorder - rectGo.Height()), rectGo.Size()));
 
 	CRect rectSavePCD;
 	GetDlgItem(IDC_SAVE_PCD)->GetClientRect(&rectSavePCD);
@@ -1509,4 +1514,12 @@ void CFormBasedView::OnBnClickedOutlierSettings()
 		GetDocument()->SetModifiedFlag(TRUE);
 	}
 
+}
+
+
+void CFormBasedView::OnBnClickedClear()
+{
+	m_ctrlLog.SetSel(0, -1);
+	//m_ctrlLog.Clear();
+//	m_ctrlLog.SetWindowText(_T(""));
 }
